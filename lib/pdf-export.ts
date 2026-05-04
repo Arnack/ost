@@ -4,6 +4,7 @@ import 'jspdf-autotable'
 import type { Client, Visit } from './types'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
+import { getPayments } from './storage'
 
 // Custom AutoTable type for jsPDF
 interface AutoTableJsPDF extends jsPDF {
@@ -16,6 +17,25 @@ interface AutoTableJsPDF extends jsPDF {
     headStyles?: Record<string, unknown>
   }) => void
   lastAutoTable?: { finalY: number }
+}
+
+function ensureSpace(doc: jsPDF, yPos: number, required = 30): number {
+  if (yPos + required > 280) {
+    doc.addPage()
+    return 20
+  }
+  return yPos
+}
+
+function addWrappedText(doc: jsPDF, label: string, value: string, yPos: number, pageWidth: number): number {
+  if (!value) return yPos
+  yPos = ensureSpace(doc, yPos, 25)
+  doc.setFont('helvetica', 'bold')
+  doc.text(`${label}:`, 14, yPos)
+  doc.setFont('helvetica', 'normal')
+  const splitText = doc.splitTextToSize(value, pageWidth - 28)
+  doc.text(splitText, 14, yPos + 5)
+  return yPos + 10 + splitText.length * 4
 }
 
 export function exportClientToPDF(client: Client): void {
@@ -111,6 +131,66 @@ export function exportClientToPDF(client: Client): void {
     doc.autoTable({
       head: [['№', 'Дата', 'Заметки', 'План']],
       body: visitsData,
+      startY: yPos,
+      theme: 'striped',
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fillColor: [26, 107, 114] },
+    })
+    yPos = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 12 : yPos + 20
+
+    const latestVisit = client.visits[client.visits.length - 1]
+    if (latestVisit) {
+      yPos = ensureSpace(doc, yPos, 40)
+      doc.setFontSize(12)
+      doc.text('Сводка последнего визита', 14, yPos)
+      yPos += 10
+
+      const clinicalData = [
+        ['Позвоночник', latestVisit.spineData.segments.filter((segment) => segment.status !== 'normal').length],
+        ['Нейротесты', latestVisit.neuroTests.length],
+        ['Регионы тела', latestVisit.bodyRegions.regions.filter((region) => region.status !== 'neutral').length],
+        ['Мышечные цепи', latestVisit.muscleChains.chains.filter((chain) => chain.status === 'break').length],
+        ['Вес Л/П', `${latestVisit.gravityData.weightLeft}/${latestVisit.gravityData.weightRight}`],
+      ]
+
+      doc.autoTable({
+        head: [['Показатель', 'Значение']],
+        body: clinicalData,
+        startY: yPos,
+        theme: 'striped',
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [26, 107, 114] },
+      })
+      yPos = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 10 : yPos + 20
+      yPos = addWrappedText(doc, 'Что обсуждали / чем работали', latestVisit.notes, yPos, pageWidth)
+      yPos = addWrappedText(doc, 'Договорились на следующий раз', latestVisit.nextPlan, yPos, pageWidth)
+      yPos = addWrappedText(doc, 'AI-анализ', latestVisit.aiSummary || '', yPos, pageWidth)
+    }
+  }
+
+  const clientPayments = [
+    ...client.payments,
+    ...getPayments().filter((payment) => payment.clientId === client.id && !client.payments.some((item) => item.id === payment.id)),
+  ]
+
+  if (clientPayments.length > 0) {
+    yPos = ensureSpace(doc, yPos, 40)
+    doc.setFontSize(12)
+    doc.text('Оплаты', 14, yPos)
+    yPos += 10
+
+    const paymentsData = clientPayments.map((payment, index) => [
+      index + 1,
+      format(new Date(payment.date), 'dd.MM.yyyy', { locale: ru }),
+      payment.cost ?? payment.amount,
+      payment.paid ?? payment.amount,
+      payment.debt ?? 0,
+      payment.status,
+    ])
+
+    doc.autoTable({
+      head: [['№', 'Дата', 'План', 'Оплачено', 'Долг', 'Статус']],
+      body: paymentsData,
       startY: yPos,
       theme: 'striped',
       styles: { fontSize: 9, cellPadding: 2 },

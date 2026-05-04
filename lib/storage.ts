@@ -134,6 +134,13 @@ export function deletePayment(id: string): void {
   setPayments(payments.filter((p) => p.id !== id))
 }
 
+export function clearOsteoData(): void {
+  setClients([])
+  setAppointments([])
+  setPayments([])
+  saveSettings(defaultSettings)
+}
+
 // Settings operations
 const defaultSettings: Settings = {
   defaultSessionDuration: 60,
@@ -213,6 +220,7 @@ export const storage = {
   addPayment,
   updatePayment,
   deletePayment,
+  clearOsteoData,
   getSettings,
   saveSettings,
   exportData,

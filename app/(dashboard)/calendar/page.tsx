@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { Plus, Clock, User, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import Link from 'next/link'
+import { Plus, Clock, User, X, ChevronLeft, ChevronRight, CreditCard, FileText } from 'lucide-react'
 import {
   format,
   startOfMonth,
@@ -52,8 +53,11 @@ import {
   deleteAppointment,
   getClients,
   getSettings,
+  saveClient,
+  addPayment,
 } from '@/lib/storage'
 import type { Appointment, Client } from '@/lib/types'
+import { createEmptyVisit } from '@/lib/types'
 
 export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -137,6 +141,8 @@ export default function CalendarPage() {
       date: format(selectedDate, 'yyyy-MM-dd'),
       time: formTime,
       duration: formDuration,
+      visitId: editingAppointment?.visitId,
+      paymentId: editingAppointment?.paymentId,
       notes: formNotes || undefined,
       status: editingAppointment?.status || 'scheduled',
     }
@@ -163,6 +169,83 @@ export default function CalendarPage() {
     saveAppointment(updated)
     setAppointments(getAppointments())
     toast.success('Запись отмечена как выполненная')
+  }
+
+  const handleCreateVisitFromAppointment = (appointment: Appointment) => {
+    if (!appointment.clientId) {
+      toast.error('Выберите клиента для создания визита')
+      return
+    }
+
+    const client = clients.find((item) => item.id === appointment.clientId)
+    if (!client) {
+      toast.error('Клиент не найден')
+      return
+    }
+
+    if (appointment.visitId && client.visits.some((visit) => visit.id === appointment.visitId)) {
+      toast.info('Визит уже создан')
+      return
+    }
+
+    const visit = {
+      ...createEmptyVisit(),
+      date: new Date(`${appointment.date}T${appointment.time}`).toISOString(),
+      notes: appointment.notes || '',
+    }
+    const updatedClient = {
+      ...client,
+      visits: [...client.visits, visit],
+      lastVisit: visit.date,
+    }
+    const updatedAppointment: Appointment = {
+      ...appointment,
+      status: 'completed',
+      visitId: visit.id,
+    }
+
+    saveClient(updatedClient)
+    saveAppointment(updatedAppointment)
+    setClients(getClients())
+    setAppointments(getAppointments())
+    setEditingAppointment(updatedAppointment)
+    toast.success('Визит создан из записи')
+  }
+
+  const handleCreatePaymentFromAppointment = (appointment: Appointment) => {
+    if (!appointment.clientId) {
+      toast.error('Выберите клиента для создания оплаты')
+      return
+    }
+    if (appointment.paymentId) {
+      toast.info('Оплата уже создана')
+      return
+    }
+
+    const settings = getSettings()
+    const cost = settings.defaultSessionCost || 0
+    const payment = {
+      id: crypto.randomUUID(),
+      visitId: appointment.visitId,
+      clientId: appointment.clientId,
+      amount: cost,
+      duration: appointment.duration,
+      cost,
+      paid: 0,
+      debt: cost,
+      method: 'cash' as const,
+      status: 'pending' as const,
+      description: `Приём ${format(parseISO(appointment.date), 'dd.MM.yyyy')} ${appointment.time}`,
+      date: new Date(`${appointment.date}T${appointment.time}`).toISOString(),
+      createdAt: new Date().toISOString(),
+    }
+    const updatedAppointment: Appointment = { ...appointment, paymentId: payment.id }
+
+    addPayment(payment)
+    saveAppointment(updatedAppointment)
+    setAppointments(getAppointments())
+    setEditingAppointment(updatedAppointment)
+    toast.success('Оплата создана')
   }
 
   const upcomingAppointments = useMemo(() => {
@@ -367,6 +450,41 @@ export default function CalendarPage() {
                       Отметить выполненным
                     </Button>
                   )}
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    {apt.clientId && (
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/clients/${apt.clientId}`}>
+                          <User className="mr-1 h-3 w-3" />
+                          Карта
+                        </Link>
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!apt.clientId || Boolean(apt.visitId)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleCreateVisitFromAppointment(apt)
+                      }}
+                    >
+                      <FileText className="mr-1 h-3 w-3" />
+                      Визит
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!apt.clientId || Boolean(apt.paymentId)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleCreatePaymentFromAppointment(apt)
+                      }}
+                      className="col-span-2"
+                    >
+                      <CreditCard className="mr-1 h-3 w-3" />
+                      Создать оплату
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -444,6 +562,38 @@ export default function CalendarPage() {
               />
             </Field>
           </FieldGroup>
+
+          {editingAppointment && (
+            <div className="grid grid-cols-2 gap-2 rounded-lg border p-3">
+              {editingAppointment.clientId && (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/clients/${editingAppointment.clientId}`}>
+                    <User className="mr-2 h-4 w-4" />
+                    Карта клиента
+                  </Link>
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!editingAppointment.clientId || Boolean(editingAppointment.visitId)}
+                onClick={() => handleCreateVisitFromAppointment(editingAppointment)}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Создать визит
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!editingAppointment.clientId || Boolean(editingAppointment.paymentId)}
+                onClick={() => handleCreatePaymentFromAppointment(editingAppointment)}
+                className="col-span-2"
+              >
+                <CreditCard className="mr-2 h-4 w-4" />
+                Создать оплату
+              </Button>
+            </div>
+          )}
 
           <DialogFooter className="gap-2">
             {editingAppointment && (

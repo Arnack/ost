@@ -193,10 +193,12 @@ export interface Client {
 export interface Appointment {
   id: string
   clientId?: string
-  clientName?: string
+  clientName: string
   date: string
   time: string
-  duration: number // minutes
+  duration: number
+  visitId?: string
+  paymentId?: string
   notes?: string
   status: 'scheduled' | 'completed' | 'cancelled'
 }

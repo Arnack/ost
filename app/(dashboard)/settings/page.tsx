@@ -19,7 +19,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import { getSettings, saveSettings, exportData, importData, getClients, getAppointments } from '@/lib/storage'
+import {
+  clearOsteoData,
+  exportData,
+  getAppointments,
+  getClients,
+  getPayments,
+  getSettings,
+  importData,
+  saveSettings,
+} from '@/lib/storage'
 import type { Settings } from '@/lib/types'
 
 export default function SettingsPage() {
@@ -28,9 +37,26 @@ export default function SettingsPage() {
     defaultSessionCost: 5000,
   })
   const [hasChanges, setHasChanges] = useState(false)
+  const [dataCounts, setDataCounts] = useState({
+    clients: 0,
+    visits: 0,
+    appointments: 0,
+    payments: 0,
+  })
+
+  const refreshDataCounts = () => {
+    const clients = getClients()
+    setDataCounts({
+      clients: clients.length,
+      visits: clients.reduce((acc, client) => acc + client.visits.length, 0),
+      appointments: getAppointments().length,
+      payments: getPayments().length,
+    })
+  }
 
   useEffect(() => {
     setSettings(getSettings())
+    refreshDataCounts()
   }, [])
 
   const handleSave = () => {
@@ -63,6 +89,7 @@ export default function SettingsPage() {
       if (importData(content)) {
         toast.success('Данные импортированы')
         setSettings(getSettings())
+        refreshDataCounts()
       } else {
         toast.error('Ошибка импорта данных')
       }
@@ -72,13 +99,11 @@ export default function SettingsPage() {
   }
 
   const handleClearData = () => {
-    localStorage.clear()
+    clearOsteoData()
     toast.success('Все данные удалены')
     setSettings(getSettings())
+    refreshDataCounts()
   }
-
-  const clients = typeof window !== 'undefined' ? getClients() : []
-  const appointments = typeof window !== 'undefined' ? getAppointments() : []
 
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
@@ -191,18 +216,22 @@ export default function SettingsPage() {
           {/* Stats */}
           <div className="flex gap-4 p-4 bg-muted/30 rounded-lg">
             <div className="text-center">
-              <p className="text-2xl font-bold text-primary">{clients.length}</p>
+              <p className="text-2xl font-bold text-primary">{dataCounts.clients}</p>
               <p className="text-xs text-muted-foreground">Клиентов</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-primary">
-                {clients.reduce((acc, c) => acc + c.visits.length, 0)}
+                {dataCounts.visits}
               </p>
               <p className="text-xs text-muted-foreground">Визитов</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-primary">{appointments.length}</p>
+              <p className="text-2xl font-bold text-primary">{dataCounts.appointments}</p>
               <p className="text-xs text-muted-foreground">Записей</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-primary">{dataCounts.payments}</p>
+              <p className="text-xs text-muted-foreground">Оплат</p>
             </div>
           </div>
 
