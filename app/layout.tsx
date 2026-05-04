@@ -9,7 +9,7 @@ const _geist = Geist({ subsets: ['latin', 'cyrillic'] })
 const _geistMono = Geist_Mono({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'OsteoTab — CRM для остеопата',
+  title: 'OsteoTab — CRM для специалиста по телу',
   description: 'Планшетное приложение для остеопата / мануального терапевта. Ведение карточек клиентов, документирование приёмов, отслеживание динамики лечения.',
   manifest: '/manifest.json',
   appleWebApp: {
@@ -19,10 +19,10 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/icons/icon-192x192.jpg', sizes: '192x192', type: 'image/jpeg' },
-      { url: '/icons/icon-512x512.jpg', sizes: '512x512', type: 'image/jpeg' },
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
     ],
-    apple: '/icons/icon-192x192.jpg',
+    apple: '/icons/icon-192x192.png',
   },
 }
 

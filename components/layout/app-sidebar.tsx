@@ -59,7 +59,7 @@ export function AppSidebar() {
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
             <span className="text-lg font-semibold text-foreground">OsteoTab</span>
-            <span className="text-xs text-muted-foreground">CRM для остеопата</span>
+            <span className="text-xs text-muted-foreground">CRM для специалиста по телу</span>
           </div>
         </div>
       </SidebarHeader>
