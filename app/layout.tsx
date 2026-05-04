@@ -37,7 +37,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru" className="bg-background">
-      <body className="font-sans antialiased min-h-screen">
+      <body className="font-serif antialiased min-h-screen">
         {children}
         <PWARegister />
         <Toaster position="top-center" richColors />
