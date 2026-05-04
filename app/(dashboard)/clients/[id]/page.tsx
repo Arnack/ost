@@ -87,6 +87,22 @@ export default function ClientCardPage() {
     setHasChanges(true)
   }, [])
 
+  const updateVisitById = useCallback((visitId: string, updates: Partial<Visit>) => {
+    setClient((prev) => {
+      if (!prev) return null
+      return {
+        ...prev,
+        visits: prev.visits.map((visit) =>
+          visit.id === visitId ? { ...visit, ...updates } : visit
+        ),
+      }
+    })
+    setCurrentVisit((prev) =>
+      prev?.id === visitId ? { ...prev, ...updates } : prev
+    )
+    setHasChanges(true)
+  }, [])
+
   // Save all changes
   const handleSave = useCallback(() => {
     if (!client) return
@@ -271,6 +287,7 @@ export default function ClientCardPage() {
                 visit={currentVisit}
                 client={client}
                 onUpdate={updateVisit}
+                onUpdateVisit={updateVisitById}
                 onNewVisit={handleNewVisit}
               />
             )}

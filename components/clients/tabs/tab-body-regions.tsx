@@ -60,6 +60,16 @@ const backRegions = [
 export function TabBodyRegions({ visit, onUpdate }: TabBodyRegionsProps) {
   const [view, setView] = useState<'front' | 'back'>('front')
 
+  const getRegionMeta = (regionId: string) => {
+    if (regionId.includes('left')) {
+      return { pairKey: regionId.replace('left', 'pair'), bodySide: 'left' as const }
+    }
+    if (regionId.includes('right')) {
+      return { pairKey: regionId.replace('right', 'pair'), bodySide: 'right' as const }
+    }
+    return { pairKey: regionId, bodySide: 'center' as const }
+  }
+
   // Get region status
   const getRegionStatus = (regionId: string): BodyRegion['status'] => {
     const region = visit.bodyRegions.regions.find((r) => r.id === regionId)
@@ -71,6 +81,7 @@ export function TabBodyRegions({ visit, onUpdate }: TabBodyRegionsProps) {
     const currentRegions = [...visit.bodyRegions.regions]
     const existingIndex = currentRegions.findIndex((r) => r.id === regionId)
     const statuses: BodyRegion['status'][] = ['neutral', '+', '-']
+    const meta = getRegionMeta(regionId)
 
     if (existingIndex >= 0) {
       const currentStatus = currentRegions[existingIndex].status
@@ -85,6 +96,7 @@ export function TabBodyRegions({ visit, onUpdate }: TabBodyRegionsProps) {
         name: regionName,
         status: '+',
         side,
+        ...meta,
       })
     }
 
@@ -157,6 +169,19 @@ export function TabBodyRegions({ visit, onUpdate }: TabBodyRegionsProps) {
 
   // Get marked regions list
   const markedRegions = visit.bodyRegions.regions.filter((r) => r.status !== 'neutral')
+  const primaryCausePairKeys = new Set(
+    visit.bodyRegions.regions
+      .filter((region) => region.status === '-' && region.bodySide !== 'center')
+      .reduce<string[]>((keys, region, _, regions) => {
+        const hasOppositeSide = regions.some(
+          (candidate) =>
+            candidate.pairKey === region.pairKey &&
+            candidate.bodySide !== region.bodySide &&
+            candidate.status === '-'
+        )
+        return hasOppositeSide && region.pairKey ? [...keys, region.pairKey] : keys
+      }, [])
+  )
 
   return (
     <ScrollArea className="h-full">
@@ -219,11 +244,17 @@ export function TabBodyRegions({ visit, onUpdate }: TabBodyRegionsProps) {
                     key={region.id}
                     className={cn(
                       'flex items-center justify-between p-2 rounded-lg border',
+                      primaryCausePairKeys.has(region.pairKey || '') && 'bg-destructive/25 border-destructive',
                       region.status === '+' && 'bg-success/10 border-success/30',
                       region.status === '-' && 'bg-destructive/10 border-destructive/30'
                     )}
                   >
-                    <span className="text-sm">{region.name}</span>
+                    <span className="text-sm">
+                      {region.name}
+                      {primaryCausePairKeys.has(region.pairKey || '') && (
+                        <span className="ml-1 text-xs text-destructive">причина</span>
+                      )}
+                    </span>
                     <span className={cn(
                       'font-bold',
                       region.status === '+' && 'text-success',

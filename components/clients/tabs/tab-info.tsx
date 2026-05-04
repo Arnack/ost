@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Camera, Upload, X, FileText, Calendar } from 'lucide-react'
+import { Camera, Upload, X, FileText, Calendar, Mic, MicOff } from 'lucide-react'
 import { format, parseISO, differenceInYears } from 'date-fns'
 import { ru } from 'date-fns/locale'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { Client, Photo, ClientFile } from '@/lib/types'
+import { isVoiceSupported, startVoiceInput, stopVoiceInput } from '@/lib/voice'
 
 interface TabInfoProps {
   client: Client
@@ -21,6 +23,7 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
   const photoInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
+  const [activeVoiceField, setActiveVoiceField] = useState<'name' | 'phone' | 'email' | null>(null)
 
   // Calculate age from birth date
   const age = client.birthDate
@@ -78,6 +81,34 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
     onUpdate({ files: client.files.filter((f) => f.id !== fileId) })
   }
 
+  const toggleVoiceInput = (field: 'name' | 'phone' | 'email') => {
+    if (activeVoiceField === field) {
+      stopVoiceInput()
+      setActiveVoiceField(null)
+      return
+    }
+
+    if (!isVoiceSupported()) {
+      toast.error('Голосовой ввод не поддерживается в этом браузере')
+      return
+    }
+
+    const currentValue = String(client[field] || '')
+    startVoiceInput({
+      interimResults: false,
+      onResult: (text) => {
+        const nextValue = currentValue ? `${currentValue} ${text}` : text
+        onUpdate({ [field]: nextValue })
+      },
+      onError: (error) => {
+        toast.error(error)
+        setActiveVoiceField(null)
+      },
+      onStart: () => setActiveVoiceField(field),
+      onEnd: () => setActiveVoiceField(null),
+    })
+  }
+
   return (
     <ScrollArea className="h-full">
       <div className="p-6 space-y-6">
@@ -90,11 +121,25 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
             <FieldGroup className="grid grid-cols-2 gap-4">
               <Field className="col-span-2 md:col-span-1">
                 <FieldLabel>ФИО</FieldLabel>
-                <Input
-                  value={client.name}
-                  onChange={(e) => onUpdate({ name: e.target.value })}
-                  className="h-11"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    value={client.name}
+                    onChange={(e) => onUpdate({ name: e.target.value })}
+                    className="h-11"
+                  />
+                  <Button
+                    type="button"
+                    variant={activeVoiceField === 'name' ? 'default' : 'outline'}
+                    size="icon"
+                    onClick={() => toggleVoiceInput('name')}
+                  >
+                    {activeVoiceField === 'name' ? (
+                      <MicOff className="h-4 w-4" />
+                    ) : (
+                      <Mic className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
               </Field>
               <Field>
                 <FieldLabel>Дата рождения</FieldLabel>
@@ -116,23 +161,51 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
               </Field>
               <Field>
                 <FieldLabel>Телефон</FieldLabel>
-                <Input
-                  type="tel"
-                  value={client.phone || ''}
-                  onChange={(e) => onUpdate({ phone: e.target.value })}
-                  placeholder="+7 (___) ___-__-__"
-                  className="h-11"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    type="tel"
+                    value={client.phone || ''}
+                    onChange={(e) => onUpdate({ phone: e.target.value })}
+                    placeholder="+7 (___) ___-__-__"
+                    className="h-11"
+                  />
+                  <Button
+                    type="button"
+                    variant={activeVoiceField === 'phone' ? 'default' : 'outline'}
+                    size="icon"
+                    onClick={() => toggleVoiceInput('phone')}
+                  >
+                    {activeVoiceField === 'phone' ? (
+                      <MicOff className="h-4 w-4" />
+                    ) : (
+                      <Mic className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
               </Field>
               <Field>
                 <FieldLabel>Email</FieldLabel>
-                <Input
-                  type="email"
-                  value={client.email || ''}
-                  onChange={(e) => onUpdate({ email: e.target.value })}
-                  placeholder="email@example.com"
-                  className="h-11"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    value={client.email || ''}
+                    onChange={(e) => onUpdate({ email: e.target.value })}
+                    placeholder="email@example.com"
+                    className="h-11"
+                  />
+                  <Button
+                    type="button"
+                    variant={activeVoiceField === 'email' ? 'default' : 'outline'}
+                    size="icon"
+                    onClick={() => toggleVoiceInput('email')}
+                  >
+                    {activeVoiceField === 'email' ? (
+                      <MicOff className="h-4 w-4" />
+                    ) : (
+                      <Mic className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
               </Field>
             </FieldGroup>
           </CardContent>

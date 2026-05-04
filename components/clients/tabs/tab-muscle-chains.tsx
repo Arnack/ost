@@ -10,61 +10,34 @@ interface TabMuscleChainsProps {
   onUpdate: (updates: Partial<Visit>) => void
 }
 
-// Muscle chains based on common myofascial chains
 const muscleChainDefinitions = [
   {
-    id: 'superficial-back',
-    name: 'Поверхностная задняя линия',
-    description: 'От пяток через заднюю поверхность ног, спину до надбровья',
+    id: 'superficial',
+    name: 'Поверхностная цепь',
+    description: 'Передняя и задняя поверхностные связи',
     color: 'bg-chart-1',
+    group: 'superficial' as const,
   },
   {
-    id: 'superficial-front',
-    name: 'Поверхностная передняя линия',
-    description: 'От пальцев ног через переднюю поверхность тела до черепа',
+    id: 'deep',
+    name: 'Глубинная цепь',
+    description: 'Внутренний стержень и глубокие стабилизаторы',
     color: 'bg-chart-2',
+    group: 'deep' as const,
   },
   {
     id: 'lateral',
-    name: 'Латеральная линия',
-    description: 'Боковая цепь от стопы до черепа',
+    name: 'Латеральная цепь',
+    description: 'Боковые линии слева и справа',
     color: 'bg-chart-3',
+    group: 'lateral' as const,
   },
   {
     id: 'spiral',
-    name: 'Спиральная линия',
-    description: 'Обвивает тело спиралью',
+    name: 'Спиральная цепь',
+    description: 'Диагональные и ротационные связи',
     color: 'bg-chart-4',
-  },
-  {
-    id: 'arm-front',
-    name: 'Передняя линия руки',
-    description: 'От грудной клетки до пальцев',
-    color: 'bg-chart-5',
-  },
-  {
-    id: 'arm-back',
-    name: 'Задняя линия руки',
-    description: 'От позвоночника до пальцев',
-    color: 'bg-primary',
-  },
-  {
-    id: 'deep-front',
-    name: 'Глубинная передняя линия',
-    description: 'Внутренний стержень тела',
-    color: 'bg-destructive',
-  },
-  {
-    id: 'functional-front',
-    name: 'Функциональная передняя линия',
-    description: 'Диагональная связь через живот',
-    color: 'bg-success',
-  },
-  {
-    id: 'functional-back',
-    name: 'Функциональная задняя линия',
-    description: 'Диагональная связь через спину',
-    color: 'bg-warning',
+    group: 'spiral' as const,
   },
 ]
 
@@ -75,22 +48,46 @@ export function TabMuscleChains({ visit, onUpdate }: TabMuscleChainsProps) {
     return chain?.status || 'norm'
   }
 
-  // Toggle chain status
-  const toggleChain = (chainId: string, chainName: string) => {
+  const getChainSideStatus = (chainId: string, side: 'leftStatus' | 'rightStatus') => {
+    const chain = visit.muscleChains.chains.find((c) => c.id === chainId)
+    return chain?.[side] || chain?.status || 'norm'
+  }
+
+  const toggleChain = (chainId: string, chainName: string, side?: 'leftStatus' | 'rightStatus') => {
     const currentChains = [...visit.muscleChains.chains]
     const existingIndex = currentChains.findIndex((c) => c.id === chainId)
+    const definition = muscleChainDefinitions.find((c) => c.id === chainId)
 
     if (existingIndex >= 0) {
-      const currentStatus = currentChains[existingIndex].status
+      const currentStatus = side
+        ? getChainSideStatus(chainId, side)
+        : currentChains[existingIndex].status
+      const nextStatus = currentStatus === 'norm' ? 'break' : 'norm'
+      const nextLeftStatus = side === 'leftStatus'
+        ? nextStatus
+        : currentChains[existingIndex].leftStatus || currentChains[existingIndex].status
+      const nextRightStatus = side === 'rightStatus'
+        ? nextStatus
+        : currentChains[existingIndex].rightStatus || currentChains[existingIndex].status
       currentChains[existingIndex] = {
         ...currentChains[existingIndex],
-        status: currentStatus === 'norm' ? 'break' : 'norm',
+        ...(side ? { [side]: nextStatus } : { status: nextStatus }),
+        status:
+          side && (nextLeftStatus === 'break' || nextRightStatus === 'break')
+            ? 'break'
+            : side
+              ? 'norm'
+              : nextStatus,
       }
     } else {
+      const nextStatus = 'break'
       currentChains.push({
         id: chainId,
         name: chainName,
-        status: 'break',
+        status: nextStatus,
+        leftStatus: side === 'leftStatus' ? nextStatus : 'norm',
+        rightStatus: side === 'rightStatus' ? nextStatus : 'norm',
+        group: definition?.group,
       })
     }
 
@@ -118,10 +115,8 @@ export function TabMuscleChains({ visit, onUpdate }: TabMuscleChainsProps) {
                 const isBreak = status === 'break'
 
                 return (
-                  <button
+                  <div
                     key={chain.id}
-                    type="button"
-                    onClick={() => toggleChain(chain.id, chain.name)}
                     className={cn(
                       'relative p-4 rounded-lg border-2 text-left transition-all min-h-[100px]',
                       isBreak
@@ -129,7 +124,7 @@ export function TabMuscleChains({ visit, onUpdate }: TabMuscleChainsProps) {
                         : 'border-border bg-card hover:border-primary/50'
                     )}
                   >
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-3 pr-20">
                       <div className={cn('w-3 h-3 rounded-full mt-1 shrink-0', chain.color)} />
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium text-sm leading-tight">{chain.name}</h4>
@@ -138,8 +133,38 @@ export function TabMuscleChains({ visit, onUpdate }: TabMuscleChainsProps) {
                         </p>
                       </div>
                     </div>
-
-                    {/* Status indicator */}
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      {[
+                        ['leftStatus', 'Левая'],
+                        ['rightStatus', 'Правая'],
+                      ].map(([side, label]) => {
+                        const sideStatus = getChainSideStatus(
+                          chain.id,
+                          side as 'leftStatus' | 'rightStatus'
+                        )
+                        return (
+                          <button
+                            key={side}
+                            type="button"
+                            onClick={() =>
+                              toggleChain(
+                                chain.id,
+                                chain.name,
+                                side as 'leftStatus' | 'rightStatus'
+                              )
+                            }
+                            className={cn(
+                              'rounded-md border px-2 py-1 text-xs font-medium',
+                              sideStatus === 'break'
+                                ? 'border-destructive bg-destructive/10 text-destructive'
+                                : 'border-success/30 bg-success/10 text-success'
+                            )}
+                          >
+                            {label}: {sideStatus === 'break' ? 'разрыв' : 'норма'}
+                          </button>
+                        )
+                      })}
+                    </div>
                     <div className={cn(
                       'absolute top-2 right-2 px-2 py-0.5 rounded text-xs font-medium',
                       isBreak
@@ -148,7 +173,7 @@ export function TabMuscleChains({ visit, onUpdate }: TabMuscleChainsProps) {
                     )}>
                       {isBreak ? 'РАЗРЫВ' : 'НОРМА'}
                     </div>
-                  </button>
+                  </div>
                 )
               })}
             </div>

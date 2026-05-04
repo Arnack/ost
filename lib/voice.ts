@@ -9,7 +9,32 @@ export interface VoiceInputOptions {
   interimResults?: boolean
 }
 
-let recognition: SpeechRecognition | null = null
+type SpeechRecognitionLike = {
+  lang: string
+  continuous: boolean
+  interimResults: boolean
+  onstart: (() => void) | null
+  onresult: ((event: SpeechRecognitionResultEventLike) => void) | null
+  onerror: ((event: { error: string }) => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
+}
+
+type SpeechRecognitionResultEventLike = {
+  resultIndex: number
+  results: {
+    length: number
+    [index: number]: {
+      isFinal: boolean
+      [index: number]: {
+        transcript: string
+      }
+    }
+  }
+}
+
+let recognition: SpeechRecognitionLike | null = null
 
 export function isVoiceSupported(): boolean {
   if (typeof window === 'undefined') return false
@@ -99,7 +124,7 @@ export function stopVoiceInput(): void {
 // Type declarations for Web Speech API
 declare global {
   interface Window {
-    SpeechRecognition: typeof SpeechRecognition
-    webkitSpeechRecognition: typeof SpeechRecognition
+    SpeechRecognition: new () => SpeechRecognitionLike
+    webkitSpeechRecognition: new () => SpeechRecognitionLike
   }
 }

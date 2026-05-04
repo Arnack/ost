@@ -15,7 +15,6 @@ interface TabSpineProps {
   onUpdate: (updates: Partial<Visit>) => void
 }
 
-// Spine segments from C0 to sacrum
 const spineSegments = [
   { id: 'C0', name: 'C0 (Затылок)', y: 5 },
   { id: 'C1', name: 'C1 (Атлант)', y: 8 },
@@ -42,7 +41,8 @@ const spineSegments = [
   { id: 'L3', name: 'L3', y: 76 },
   { id: 'L4', name: 'L4', y: 80 },
   { id: 'L5', name: 'L5', y: 84 },
-  { id: 'S1', name: 'Крестец', y: 90 },
+  { id: 'S1', name: 'S1', y: 89 },
+  { id: 'S2', name: 'S2', y: 92 },
   { id: 'Coccyx', name: 'Копчик', y: 96 },
 ]
 

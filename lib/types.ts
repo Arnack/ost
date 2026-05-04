@@ -5,6 +5,7 @@ export interface Photo {
   url: string
   date: string
   description?: string
+  projection?: 'front' | 'back' | 'left' | 'right' | 'other'
 }
 
 export interface ClientFile {
@@ -62,6 +63,8 @@ export interface SpineAnnotation {
 export interface NeuroTest {
   id: string
   name: string
+  status?: 'normal' | 'deviation'
+  postStatus?: 'normal' | 'deviation'
   results: {
     current: string
     previous?: string
@@ -71,6 +74,19 @@ export interface NeuroTest {
 }
 
 export interface GravityData {
+  patterns?: {
+    breathing: '+' | '-' | 'neutral'
+    rightStep: '+' | '-' | 'neutral'
+    leftStep: '+' | '-' | 'neutral'
+    vertical: '+' | '-' | 'neutral'
+  }
+  littleToeMarker?: {
+    foot: 'left' | 'right'
+    toe: 1 | 2 | 3 | 4 | 5
+  }
+  totalWeight?: number
+  leftCost?: number
+  rightCost?: number
   anteriorPosterior: {
     upper: '+' | '-' | 'neutral'
     lower: '+' | '-' | 'neutral'
@@ -100,6 +116,8 @@ export interface BodyRegion {
   name: string
   status: '+' | '-' | 'neutral'
   side: 'front' | 'back'
+  pairKey?: string
+  bodySide?: 'left' | 'right' | 'center'
 }
 
 export interface BodyRegionData {
@@ -110,6 +128,9 @@ export interface MuscleChain {
   id: string
   name: string
   status: 'norm' | 'break'
+  leftStatus?: 'norm' | 'break'
+  rightStatus?: 'norm' | 'break'
+  group?: 'superficial' | 'deep' | 'lateral' | 'spiral'
   breakPoints?: string[]
 }
 
@@ -136,7 +157,10 @@ export interface Payment {
   visitId?: string
   clientId: string
   amount: number
+  duration?: number
+  cost?: number
   paid?: number
+  debt?: number
   method: 'cash' | 'card' | 'transfer'
   status: 'paid' | 'pending' | 'cancelled'
   notes?: string
@@ -210,12 +234,21 @@ export const emptySpineData: SpineData = {
 }
 
 export const emptyGravityData: GravityData = {
+  patterns: {
+    breathing: 'neutral',
+    rightStep: 'neutral',
+    leftStep: 'neutral',
+    vertical: 'neutral',
+  },
   anteriorPosterior: { upper: 'neutral', lower: 'neutral' },
   leftRight: { upper: 'neutral', lower: 'neutral' },
   footLeft: { front: 25, back: 25, inner: 25, outer: 25 },
   footRight: { front: 25, back: 25, inner: 25, outer: 25 },
   weightLeft: 0,
   weightRight: 0,
+  totalWeight: 0,
+  leftCost: 0,
+  rightCost: 0,
 }
 
 export const emptyBodyRegionData: BodyRegionData = {
@@ -254,5 +287,78 @@ export function createEmptyClient(name: string): Client {
     anamnesis: emptyAnamnesis,
     visits: [],
     payments: [],
+  }
+}
+
+export function normalizeVisit(visit: Visit): Visit {
+  return {
+    ...visit,
+    spineData: {
+      ...emptySpineData,
+      ...visit.spineData,
+      segments: visit.spineData?.segments || [],
+      annotations: visit.spineData?.annotations || [],
+    },
+    neuroTests: visit.neuroTests || [],
+    gravityData: {
+      ...emptyGravityData,
+      ...visit.gravityData,
+      patterns: {
+        breathing: visit.gravityData?.patterns?.breathing || 'neutral',
+        rightStep: visit.gravityData?.patterns?.rightStep || 'neutral',
+        leftStep: visit.gravityData?.patterns?.leftStep || 'neutral',
+        vertical: visit.gravityData?.patterns?.vertical || 'neutral',
+      },
+      footLeft: {
+        ...emptyGravityData.footLeft,
+        ...visit.gravityData?.footLeft,
+      },
+      footRight: {
+        ...emptyGravityData.footRight,
+        ...visit.gravityData?.footRight,
+      },
+    },
+    bodyRegions: {
+      ...emptyBodyRegionData,
+      ...visit.bodyRegions,
+      regions: visit.bodyRegions?.regions || [],
+    },
+    muscleChains: {
+      ...emptyMuscleChainData,
+      ...visit.muscleChains,
+      chains: visit.muscleChains?.chains || [],
+    },
+    notes: visit.notes || '',
+    nextPlan: visit.nextPlan || '',
+  }
+}
+
+export function normalizeClient(client: Client): Client {
+  const fallbackDate = client.createdAt || client.firstVisit || new Date().toISOString()
+  return {
+    ...client,
+    photos: client.photos || [],
+    files: client.files || [],
+    anamnesis: {
+      ...emptyAnamnesis,
+      ...client.anamnesis,
+    },
+    visits: (client.visits || []).map(normalizeVisit),
+    payments: client.payments || [],
+    createdAt: client.createdAt || fallbackDate,
+    firstVisit: client.firstVisit || fallbackDate,
+    lastVisit: client.lastVisit || client.firstVisit || fallbackDate,
+  }
+}
+
+export function normalizePayment(payment: Payment): Payment {
+  const cost = payment.cost ?? payment.amount ?? 0
+  const paid = payment.paid ?? (payment.status === 'paid' ? payment.amount : 0)
+  return {
+    ...payment,
+    amount: cost,
+    cost,
+    paid,
+    debt: Math.max(cost - paid, 0),
   }
 }

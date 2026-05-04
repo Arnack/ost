@@ -1,6 +1,7 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
@@ -24,6 +25,12 @@ export function TabGravity({ visit, onUpdate }: TabGravityProps) {
     })
   }
 
+  const cycleValue = (current: GridValue): GridValue => {
+    const values: GridValue[] = ['neutral', '+', '-']
+    const index = values.indexOf(current)
+    return values[(index + 1) % values.length]
+  }
+
   // 2x2 Grid selector component
   const GridSelector = ({
     title,
@@ -34,12 +41,6 @@ export function TabGravity({ visit, onUpdate }: TabGravityProps) {
     data: { upper: GridValue; lower: GridValue }
     onChange: (updates: { upper?: GridValue; lower?: GridValue }) => void
   }) => {
-    const cycleValue = (current: GridValue): GridValue => {
-      const values: GridValue[] = ['neutral', '+', '-']
-      const index = values.indexOf(current)
-      return values[(index + 1) % values.length]
-    }
-
     return (
       <div className="space-y-2">
         <p className="text-sm font-medium text-center">{title}</p>
@@ -189,31 +190,79 @@ export function TabGravity({ visit, onUpdate }: TabGravityProps) {
             <CardTitle>Центры тяжести</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap justify-center gap-12">
-              <GridSelector
-                title="Передне-задний"
-                data={visit.gravityData.anteriorPosterior}
-                onChange={(updates) =>
-                  updateGravityData({
-                    anteriorPosterior: {
-                      ...visit.gravityData.anteriorPosterior,
-                      ...updates,
-                    },
-                  })
-                }
-              />
-              <GridSelector
-                title="Лево-правый"
-                data={visit.gravityData.leftRight}
-                onChange={(updates) =>
-                  updateGravityData({
-                    leftRight: {
-                      ...visit.gravityData.leftRight,
-                      ...updates,
-                    },
-                  })
-                }
-              />
+            <div className="grid gap-8 lg:grid-cols-[220px_1fr]">
+              <div className="rounded-lg border bg-muted/30 p-4">
+                <p className="mb-3 text-sm font-medium">Эталонная схема</p>
+                <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                  <div className="rounded bg-background p-3">Дыхание</div>
+                  <div className="rounded bg-background p-3">Вертикаль</div>
+                  <div className="rounded bg-background p-3">Шаг Л</div>
+                  <div className="rounded bg-background p-3">Шаг П</div>
+                </div>
+              </div>
+              <div className="flex flex-wrap justify-center gap-8">
+                {[
+                  ['breathing', 'Паттерн дыхания'],
+                  ['rightStep', 'Паттерн правого шага'],
+                  ['leftStep', 'Паттерн левого шага'],
+                  ['vertical', 'Паттерн вертикали'],
+                ].map(([key, label]) => {
+                  const patterns = visit.gravityData.patterns || {
+                    breathing: 'neutral',
+                    rightStep: 'neutral',
+                    leftStep: 'neutral',
+                    vertical: 'neutral',
+                  }
+                  const value = patterns[key as keyof typeof patterns]
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() =>
+                        updateGravityData({
+                          patterns: {
+                            ...patterns,
+                            [key]: cycleValue(value),
+                          },
+                        })
+                      }
+                      className={cn(
+                        'h-24 w-32 rounded-lg border text-sm font-medium transition-colors',
+                        value === 'neutral' && 'bg-muted/50',
+                        value === '+' && 'bg-success/20 border-success',
+                        value === '-' && 'bg-destructive/20 border-destructive'
+                      )}
+                    >
+                      <span className="block">{label}</span>
+                      <span className="mt-2 block text-xl">{value === 'neutral' ? '○' : value}</span>
+                    </button>
+                  )
+                })}
+                <GridSelector
+                  title="Передне-задний"
+                  data={visit.gravityData.anteriorPosterior}
+                  onChange={(updates) =>
+                    updateGravityData({
+                      anteriorPosterior: {
+                        ...visit.gravityData.anteriorPosterior,
+                        ...updates,
+                      },
+                    })
+                  }
+                />
+                <GridSelector
+                  title="Лево-правый"
+                  data={visit.gravityData.leftRight}
+                  onChange={(updates) =>
+                    updateGravityData({
+                      leftRight: {
+                        ...visit.gravityData.leftRight,
+                        ...updates,
+                      },
+                    })
+                  }
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -249,6 +298,29 @@ export function TabGravity({ visit, onUpdate }: TabGravityProps) {
                   })
                 }
               />
+            </div>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              {(['left', 'right'] as const).map((foot) =>
+                ([1, 2, 3, 4, 5] as const).map((toe) => (
+                  <Button
+                    key={`${foot}-${toe}`}
+                    variant={
+                      visit.gravityData.littleToeMarker?.foot === foot &&
+                      visit.gravityData.littleToeMarker?.toe === toe
+                        ? 'default'
+                        : 'outline'
+                    }
+                    size="sm"
+                    onClick={() =>
+                      updateGravityData({
+                        littleToeMarker: { foot, toe },
+                      })
+                    }
+                  >
+                    {foot === 'left' ? 'Л' : 'П'} {toe}
+                  </Button>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
@@ -291,6 +363,30 @@ export function TabGravity({ visit, onUpdate }: TabGravityProps) {
                 <div className="h-11 flex items-center justify-center text-lg font-medium bg-muted rounded-md">
                   {(visit.gravityData.weightLeft + visit.gravityData.weightRight).toFixed(1)} кг
                 </div>
+              </Field>
+              <Field className="w-32">
+                <FieldLabel>Затраты Л</FieldLabel>
+                <Input
+                  type="number"
+                  value={visit.gravityData.leftCost || 0}
+                  onChange={(e) =>
+                    updateGravityData({ leftCost: Number(e.target.value) })
+                  }
+                  className="h-11 text-center text-lg"
+                  min={0}
+                />
+              </Field>
+              <Field className="w-32">
+                <FieldLabel>Затраты П</FieldLabel>
+                <Input
+                  type="number"
+                  value={visit.gravityData.rightCost || 0}
+                  onChange={(e) =>
+                    updateGravityData({ rightCost: Number(e.target.value) })
+                  }
+                  className="h-11 text-center text-lg"
+                  min={0}
+                />
               </Field>
               <Field className="w-32">
                 <FieldLabel>Разница</FieldLabel>

@@ -1,6 +1,7 @@
 // OsteoTab CRM - localStorage Abstraction
 
 import type { Client, Appointment, Settings, Payment } from './types'
+import { normalizeClient, normalizePayment } from './types'
 
 const STORAGE_KEYS = {
   CLIENTS: 'osteotab_clients',
@@ -31,7 +32,7 @@ function setItem<T>(key: string, value: T): void {
 
 // Client operations
 export function getClients(): Client[] {
-  return getItem<Client[]>(STORAGE_KEYS.CLIENTS, [])
+  return getItem<Client[]>(STORAGE_KEYS.CLIENTS, []).map(normalizeClient)
 }
 
 export function setClients(clients: Client[]): void {
@@ -101,7 +102,7 @@ export function getTodayAppointments(): Appointment[] {
 
 // Payment operations
 export function getPayments(): Payment[] {
-  return getItem<Payment[]>(STORAGE_KEYS.PAYMENTS, [])
+  return getItem<Payment[]>(STORAGE_KEYS.PAYMENTS, []).map(normalizePayment)
 }
 
 export function setPayments(payments: Payment[]): void {

@@ -11,10 +11,14 @@ import {
   isSameMonth,
   addMonths,
   subMonths,
+  addWeeks,
+  subWeeks,
   startOfWeek,
   endOfWeek,
   parseISO,
   isToday,
+  isAfter,
+  startOfDay,
 } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -53,6 +57,7 @@ import type { Appointment, Client } from '@/lib/types'
 
 export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [viewMode, setViewMode] = useState<'month' | 'week'>('month')
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [clients, setClients] = useState<Client[]>([])
@@ -73,13 +78,19 @@ export default function CalendarPage() {
 
   // Generate calendar days
   const calendarDays = useMemo(() => {
+    if (viewMode === 'week') {
+      const weekStart = startOfWeek(currentMonth, { weekStartsOn: 1 })
+      const weekEnd = endOfWeek(currentMonth, { weekStartsOn: 1 })
+      return eachDayOfInterval({ start: weekStart, end: weekEnd })
+    }
+
     const monthStart = startOfMonth(currentMonth)
     const monthEnd = endOfMonth(currentMonth)
     const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 })
     const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
 
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd })
-  }, [currentMonth])
+  }, [currentMonth, viewMode])
 
   // Get appointments for a specific date
   const getAppointmentsForDate = (date: Date) => {
@@ -154,8 +165,16 @@ export default function CalendarPage() {
     toast.success('Запись отмечена как выполненная')
   }
 
-  // Today's appointments
-  const todayAppointments = getAppointmentsForDate(new Date())
+  const upcomingAppointments = useMemo(() => {
+    const today = startOfDay(new Date())
+    return appointments
+      .filter((appointment) => {
+        const date = parseISO(appointment.date)
+        return appointment.status !== 'cancelled' && (isToday(date) || isAfter(date, today))
+      })
+      .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))
+      .slice(0, 12)
+  }, [appointments])
 
   return (
     <div className="flex flex-col h-full lg:flex-row">
@@ -167,27 +186,59 @@ export default function CalendarPage() {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+                onClick={() =>
+                  setCurrentMonth(
+                    viewMode === 'week'
+                      ? subWeeks(currentMonth, 1)
+                      : subMonths(currentMonth, 1)
+                  )
+                }
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <CardTitle className="text-xl min-w-[180px] text-center">
-                {format(currentMonth, 'LLLL yyyy', { locale: ru })}
+                {viewMode === 'week'
+                  ? `${format(calendarDays[0], 'd MMM', { locale: ru })} — ${format(calendarDays[6], 'd MMM yyyy', { locale: ru })}`
+                  : format(currentMonth, 'LLLL yyyy', { locale: ru })}
               </CardTitle>
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+                onClick={() =>
+                  setCurrentMonth(
+                    viewMode === 'week'
+                      ? addWeeks(currentMonth, 1)
+                      : addMonths(currentMonth, 1)
+                  )
+                }
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-            <Button
-              variant="outline"
-              onClick={() => setCurrentMonth(new Date())}
-            >
-              Сегодня
-            </Button>
+            <div className="flex items-center gap-2">
+              <div className="flex rounded-lg border p-1">
+                <Button
+                  variant={viewMode === 'month' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('month')}
+                >
+                  Месяц
+                </Button>
+                <Button
+                  variant={viewMode === 'week' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('week')}
+                >
+                  Неделя
+                </Button>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setCurrentMonth(new Date())}
+              >
+                Сегодня
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {/* Weekday headers */}
@@ -216,7 +267,7 @@ export default function CalendarPage() {
                     onClick={() => openNewAppointmentDialog(day)}
                     className={cn(
                       'relative min-h-[80px] p-1 rounded-lg border text-left transition-colors',
-                      isCurrentMonth
+                      isCurrentMonth || viewMode === 'week'
                         ? 'bg-card hover:bg-accent'
                         : 'bg-muted/30 text-muted-foreground',
                       isSelected && 'ring-2 ring-primary',
@@ -265,16 +316,16 @@ export default function CalendarPage() {
 
       {/* Today's appointments sidebar */}
       <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l p-4 lg:p-6 bg-card">
-        <h2 className="text-lg font-semibold mb-4">Сегодня</h2>
+        <h2 className="text-lg font-semibold mb-4">Ближайшие записи</h2>
         <ScrollArea className="h-[calc(100vh-200px)]">
-          {todayAppointments.length === 0 ? (
+          {upcomingAppointments.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Clock className="mx-auto h-10 w-10 mb-2 opacity-50" />
-              <p>Нет записей на сегодня</p>
+              <p>Нет ближайших записей</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {todayAppointments.map((apt) => (
+              {upcomingAppointments.map((apt) => (
                 <div
                   key={apt.id}
                   className={cn(
@@ -284,7 +335,9 @@ export default function CalendarPage() {
                   onClick={() => openEditDialog(apt)}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium">{apt.time}</span>
+                    <span className="font-medium">
+                      {format(parseISO(apt.date), 'd MMM', { locale: ru })} · {apt.time}
+                    </span>
                     <Badge
                       variant={apt.status === 'completed' ? 'secondary' : 'default'}
                       className="text-xs"

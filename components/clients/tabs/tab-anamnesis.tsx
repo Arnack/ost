@@ -1,11 +1,17 @@
 'use client'
 
+import { useState } from 'react'
+import { Mic, MicOff } from 'lucide-react'
+import { toast } from 'sonner'
+
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { Slider } from '@/components/ui/slider'
 import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { Client, Anamnesis } from '@/lib/types'
+import { isVoiceSupported, startVoiceInput, stopVoiceInput } from '@/lib/voice'
 
 interface TabAnamnesisProps {
   client: Client
@@ -30,12 +36,42 @@ const anamnesisFields = [
 ] as const
 
 export function TabAnamnesis({ client, onUpdate }: TabAnamnesisProps) {
+  const [activeVoiceField, setActiveVoiceField] = useState<keyof Anamnesis | null>(null)
+
   const updateAnamnesis = (key: keyof Anamnesis, value: string | number) => {
     onUpdate({
       anamnesis: {
         ...client.anamnesis,
         [key]: value,
       },
+    })
+  }
+
+  const toggleVoiceInput = (key: keyof Anamnesis) => {
+    if (activeVoiceField === key) {
+      stopVoiceInput()
+      setActiveVoiceField(null)
+      return
+    }
+
+    if (!isVoiceSupported()) {
+      toast.error('Голосовой ввод не поддерживается в этом браузере')
+      return
+    }
+
+    const currentValue = String(client.anamnesis[key] || '')
+    startVoiceInput({
+      interimResults: false,
+      onResult: (text) => {
+        const nextValue = currentValue ? `${currentValue} ${text}` : text
+        updateAnamnesis(key, nextValue)
+      },
+      onError: (error) => {
+        toast.error(error)
+        setActiveVoiceField(null)
+      },
+      onStart: () => setActiveVoiceField(key),
+      onEnd: () => setActiveVoiceField(null),
     })
   }
 
@@ -51,7 +87,21 @@ export function TabAnamnesis({ client, onUpdate }: TabAnamnesisProps) {
             <FieldGroup className="space-y-4">
               {anamnesisFields.map((field) => (
                 <Field key={field.key}>
-                  <FieldLabel>{field.label}</FieldLabel>
+                  <div className="flex items-center justify-between gap-2">
+                    <FieldLabel>{field.label}</FieldLabel>
+                    <Button
+                      type="button"
+                      variant={activeVoiceField === field.key ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => toggleVoiceInput(field.key)}
+                    >
+                      {activeVoiceField === field.key ? (
+                        <MicOff className="h-4 w-4" />
+                      ) : (
+                        <Mic className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                   <Textarea
                     value={client.anamnesis[field.key] as string}
                     onChange={(e) => updateAnamnesis(field.key, e.target.value)}

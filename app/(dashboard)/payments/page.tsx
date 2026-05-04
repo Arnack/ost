@@ -9,7 +9,6 @@ import {
   Filter, 
   Download,
   TrendingUp,
-  TrendingDown,
   Wallet,
   CreditCard,
   Banknote,
@@ -89,7 +88,9 @@ export default function PaymentsPage() {
   // Form state
   const [formData, setFormData] = useState({
     clientId: "",
-    amount: "",
+    duration: "60",
+    cost: "",
+    paid: "",
     method: "cash" as Payment["method"],
     status: "paid" as Payment["status"],
     description: "",
@@ -127,29 +128,34 @@ export default function PaymentsPage() {
   }, [payments, clients, searchQuery, statusFilter, methodFilter, dateRange])
 
   const stats = useMemo(() => {
-    const filtered = filteredPayments.filter((p) => p.status === "paid")
-    const total = filtered.reduce((sum, p) => sum + p.amount, 0)
-    const pending = filteredPayments
-      .filter((p) => p.status === "pending")
-      .reduce((sum, p) => sum + p.amount, 0)
-    const cashTotal = filtered
+    const total = filteredPayments.reduce((sum, p) => sum + (p.paid ?? p.amount), 0)
+    const debt = filteredPayments.reduce((sum, p) => sum + (p.debt ?? Math.max((p.cost ?? p.amount) - (p.paid ?? 0), 0)), 0)
+    const cashTotal = filteredPayments
       .filter((p) => p.method === "cash")
-      .reduce((sum, p) => sum + p.amount, 0)
-    const cardTotal = filtered
+      .reduce((sum, p) => sum + (p.paid ?? p.amount), 0)
+    const cardTotal = filteredPayments
       .filter((p) => p.method === "card")
-      .reduce((sum, p) => sum + p.amount, 0)
-    return { total, pending, cashTotal, cardTotal, count: filtered.length }
+      .reduce((sum, p) => sum + (p.paid ?? p.amount), 0)
+    return { total, debt, cashTotal, cardTotal, count: filteredPayments.length }
   }, [filteredPayments])
 
   const handleSubmit = () => {
-    if (!formData.clientId || !formData.amount) return
+    if (!formData.clientId || !formData.cost) return
+
+    const cost = parseFloat(formData.cost) || 0
+    const paid = parseFloat(formData.paid) || 0
+    const debt = Math.max(cost - paid, 0)
 
     const paymentData: Payment = {
       id: editingPayment?.id || crypto.randomUUID(),
       clientId: formData.clientId,
-      amount: parseFloat(formData.amount),
+      amount: cost,
+      duration: parseInt(formData.duration, 10) || undefined,
+      cost,
+      paid,
+      debt,
       method: formData.method,
-      status: formData.status,
+      status: debt <= 0 ? "paid" : formData.status,
       description: formData.description,
       date: formData.date.toISOString(),
       createdAt: editingPayment?.createdAt || new Date().toISOString(),
@@ -175,7 +181,9 @@ export default function PaymentsPage() {
   const resetForm = () => {
     setFormData({
       clientId: "",
-      amount: "",
+      duration: "60",
+      cost: "",
+      paid: "",
       method: "cash",
       status: "paid",
       description: "",
@@ -187,7 +195,9 @@ export default function PaymentsPage() {
     setEditingPayment(payment)
     setFormData({
       clientId: payment.clientId,
-      amount: payment.amount.toString(),
+      duration: payment.duration?.toString() || "60",
+      cost: (payment.cost ?? payment.amount).toString(),
+      paid: (payment.paid ?? payment.amount).toString(),
       method: payment.method,
       status: payment.status,
       description: payment.description || "",
@@ -216,11 +226,14 @@ export default function PaymentsPage() {
   }
 
   const exportToCSV = () => {
-    const headers = ["Дата", "Клиент", "Сумма", "Способ", "Статус", "Описание"]
+    const headers = ["Дата", "Клиент", "Длительность", "Стоимость", "Оплачено", "Долг", "Способ", "Статус", "Описание"]
     const rows = filteredPayments.map((p) => [
       format(parseISO(p.date), "dd.MM.yyyy"),
       getClientName(p.clientId),
-      p.amount.toString(),
+      (p.duration || "").toString(),
+      (p.cost ?? p.amount).toString(),
+      (p.paid ?? p.amount).toString(),
+      (p.debt ?? 0).toString(),
       PAYMENT_METHODS.find((m) => m.value === p.method)?.label || p.method,
       PAYMENT_STATUSES.find((s) => s.value === p.status)?.label || p.status,
       p.description || "",
@@ -239,7 +252,7 @@ export default function PaymentsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Платежи</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Оплаты</h1>
           <p className="text-muted-foreground">
             Управление платежами и финансовой отчётностью
           </p>
@@ -289,17 +302,46 @@ export default function PaymentsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <Label>Сумма (₽)</Label>
-                  <Input
-                    type="number"
-                    value={formData.amount}
-                    onChange={(e) =>
-                      setFormData({ ...formData, amount: e.target.value })
-                    }
-                    placeholder="0"
-                    className="min-h-[44px]"
-                  />
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="flex flex-col gap-2">
+                    <Label>Длительность</Label>
+                    <Input
+                      type="number"
+                      value={formData.duration}
+                      onChange={(e) =>
+                        setFormData({ ...formData, duration: e.target.value })
+                      }
+                      placeholder="60"
+                      className="min-h-[44px]"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label>Стоимость</Label>
+                    <Input
+                      type="number"
+                      value={formData.cost}
+                      onChange={(e) =>
+                        setFormData({ ...formData, cost: e.target.value })
+                      }
+                      placeholder="0"
+                      className="min-h-[44px]"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label>Оплачено</Label>
+                    <Input
+                      type="number"
+                      value={formData.paid}
+                      onChange={(e) =>
+                        setFormData({ ...formData, paid: e.target.value })
+                      }
+                      placeholder="0"
+                      className="min-h-[44px]"
+                    />
+                  </div>
+                </div>
+                <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+                  Долг: {formatCurrency(Math.max((parseFloat(formData.cost) || 0) - (parseFloat(formData.paid) || 0), 0))}
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label>Способ оплаты</Label>
@@ -420,14 +462,14 @@ export default function PaymentsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Ожидает оплаты
+              Долг
             </CardTitle>
             <Clock className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.pending)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(stats.debt)}</div>
             <p className="text-xs text-muted-foreground">
-              Незавершённые платежи
+              Разница между стоимостью и оплатой
             </p>
           </CardContent>
         </Card>
@@ -534,7 +576,10 @@ export default function PaymentsPage() {
               <TableRow>
                 <TableHead className="min-w-[120px]">Дата</TableHead>
                 <TableHead className="min-w-[200px]">Клиент</TableHead>
-                <TableHead className="min-w-[120px]">Сумма</TableHead>
+                <TableHead className="min-w-[100px]">Длит.</TableHead>
+                <TableHead className="min-w-[120px]">Стоимость</TableHead>
+                <TableHead className="min-w-[120px]">Оплачено</TableHead>
+                <TableHead className="min-w-[120px]">Долг</TableHead>
                 <TableHead className="min-w-[120px]">Способ</TableHead>
                 <TableHead className="min-w-[120px]">Статус</TableHead>
                 <TableHead>Описание</TableHead>
@@ -544,7 +589,7 @@ export default function PaymentsPage() {
             <TableBody>
               {filteredPayments.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center">
+                  <TableCell colSpan={10} className="h-32 text-center">
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <Wallet className="h-8 w-8" />
                       <p>Платежи не найдены</p>
@@ -574,8 +619,17 @@ export default function PaymentsPage() {
                           {getClientName(payment.clientId)}
                         </div>
                       </TableCell>
+                      <TableCell>
+                        {payment.duration ? `${payment.duration} мин` : "—"}
+                      </TableCell>
                       <TableCell className="font-medium">
-                        {formatCurrency(payment.amount)}
+                        {formatCurrency(payment.cost ?? payment.amount)}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {formatCurrency(payment.paid ?? payment.amount)}
+                      </TableCell>
+                      <TableCell className={payment.debt ? "font-medium text-destructive" : "text-muted-foreground"}>
+                        {formatCurrency(payment.debt ?? 0)}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">

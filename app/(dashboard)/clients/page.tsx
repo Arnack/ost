@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, AlertCircle, Clock, FileDown } from 'lucide-react'
-import { differenceInDays, format, parseISO } from 'date-fns'
+import { Plus, Search, FileDown } from 'lucide-react'
+import { differenceInYears, format, parseISO } from 'date-fns'
 import { ru } from 'date-fns/locale'
 
 import { Button } from '@/components/ui/button'
@@ -24,10 +24,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Badge } from '@/components/ui/badge'
 import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent, EmptyHeader } from '@/components/ui/empty'
-import { getClientsSortedByLastVisit, saveClient, getClients } from '@/lib/storage'
+import { getClientsSortedByLastVisit, saveClient } from '@/lib/storage'
 import { createEmptyClient, type Client } from '@/lib/types'
 import { exportAllClientsToPDF } from '@/lib/pdf-export'
 
@@ -55,15 +54,9 @@ export default function ClientsPage() {
     )
   }, [clients, search])
 
-  // Get days since last visit and status
-  const getDaysSinceLastVisit = (lastVisit: string) => {
-    return differenceInDays(new Date(), parseISO(lastVisit))
-  }
-
-  const getVisitStatus = (days: number) => {
-    if (days > 60) return 'overdue'
-    if (days > 30) return 'warning'
-    return 'normal'
+  const getAge = (birthDate?: string) => {
+    if (!birthDate) return '—'
+    return differenceInYears(new Date(), parseISO(birthDate)).toString()
   }
 
   // Create new client
@@ -158,29 +151,31 @@ export default function ClientsPage() {
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[40%]">Имя</TableHead>
-                  <TableHead>Телефон</TableHead>
+                  <TableHead className="w-[30%]">ФИО</TableHead>
+                  <TableHead>Возраст</TableHead>
+                  <TableHead>Первый приём</TableHead>
                   <TableHead>Последний визит</TableHead>
-                  <TableHead>Визитов</TableHead>
-                  <TableHead className="text-right">Статус</TableHead>
+                  <TableHead className="text-right">Действие</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredClients.map((client) => {
-                  const days = getDaysSinceLastVisit(client.lastVisit)
-                  const status = getVisitStatus(days)
-
-                  return (
-                    <TableRow
-                      key={client.id}
-                      onClick={() => handleClientClick(client.id)}
-                      className="cursor-pointer h-14"
-                    >
+                {filteredClients.map((client) => (
+                  <TableRow
+                    key={client.id}
+                    className="h-14"
+                  >
                       <TableCell className="font-medium">
                         {client.name}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {client.phone || '—'}
+                        {getAge(client.birthDate)}
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-muted-foreground">
+                          {format(parseISO(client.firstVisit), 'd MMM yyyy', {
+                            locale: ru,
+                          })}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -189,33 +184,20 @@ export default function ClientsPage() {
                               locale: ru,
                             })}
                           </span>
-                          <span className="text-xs text-muted-foreground">
-                            ({days} дн. назад)
-                          </span>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <span className="text-muted-foreground">
-                          {client.visits.length}
-                        </span>
-                      </TableCell>
                       <TableCell className="text-right">
-                        {status === 'overdue' && (
-                          <Badge variant="destructive" className="gap-1">
-                            <AlertCircle className="h-3 w-3" />
-                            {'> 60 дней'}
-                          </Badge>
-                        )}
-                        {status === 'warning' && (
-                          <Badge variant="secondary" className="gap-1 bg-warning/20 text-warning-foreground border-warning/30">
-                            <Clock className="h-3 w-3" />
-                            {'> 30 дней'}
-                          </Badge>
-                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleClientClick(client.id)}
+                        >
+                          Открыть
+                        </Button>
                       </TableCell>
                     </TableRow>
                   )
-                })}
+                )}
               </TableBody>
             </Table>
           </div>

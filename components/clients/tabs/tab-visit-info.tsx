@@ -20,10 +20,11 @@ interface TabVisitInfoProps {
   visit: Visit
   client: Client
   onUpdate: (updates: Partial<Visit>) => void
+  onUpdateVisit: (visitId: string, updates: Partial<Visit>) => void
   onNewVisit: () => void
 }
 
-export function TabVisitInfo({ visit, client, onUpdate, onNewVisit }: TabVisitInfoProps) {
+export function TabVisitInfo({ visit, client, onUpdate, onUpdateVisit, onNewVisit }: TabVisitInfoProps) {
   const [isRecording, setIsRecording] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [voiceSupported, setVoiceSupported] = useState(false)
@@ -129,18 +130,18 @@ export function TabVisitInfo({ visit, client, onUpdate, onNewVisit }: TabVisitIn
           <CardContent>
             <FieldGroup className="space-y-4">
               <Field>
-                <FieldLabel>Что выявлено на осмотре</FieldLabel>
+                <FieldLabel>Что обсуждали / чем работали</FieldLabel>
                 <Textarea
                   ref={notesRef}
                   value={visit.notes}
                   onChange={(e) => onUpdate({ notes: e.target.value })}
-                  placeholder="Опишите находки осмотра, работу с тканями, реакции..."
+                  placeholder="Опишите, что обсуждали и чем работали на приёме..."
                   className="min-h-[150px]"
                 />
               </Field>
               <Field>
                 <div className="flex items-center justify-between mb-2">
-                  <FieldLabel>План на следующий визит</FieldLabel>
+                  <FieldLabel>Договорились на следующий раз</FieldLabel>
                   {voiceSupported && (
                     <Button
                       variant={isRecording && activeField === 'plan' ? 'destructive' : 'ghost'}
@@ -166,7 +167,7 @@ export function TabVisitInfo({ visit, client, onUpdate, onNewVisit }: TabVisitIn
                   ref={planRef}
                   value={visit.nextPlan}
                   onChange={(e) => onUpdate({ nextPlan: e.target.value })}
-                  placeholder="Что планируется на следующий приём..."
+                  placeholder="Что договорились сделать или обсудить на следующем приёме..."
                   className="min-h-[100px]"
                 />
               </Field>
@@ -206,22 +207,17 @@ export function TabVisitInfo({ visit, client, onUpdate, onNewVisit }: TabVisitIn
 
         <Separator />
 
-        {/* Visit history preview */}
         <Card>
           <CardHeader>
-            <CardTitle>История визитов</CardTitle>
+            <CardTitle>Редактируемая история визитов</CardTitle>
           </CardHeader>
           <CardContent>
-            {client.visits.length <= 1 ? (
-              <p className="text-muted-foreground text-center py-4">
-                Это первый визит клиента
-              </p>
+            {client.visits.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">Нет сохранённых визитов</p>
             ) : (
               <div className="space-y-3">
                 {[...client.visits]
-                  .filter((v) => v.id !== visit.id)
                   .reverse()
-                  .slice(0, 5)
                   .map((v, index) => (
                     <div
                       key={v.id}
@@ -235,11 +231,32 @@ export function TabVisitInfo({ visit, client, onUpdate, onNewVisit }: TabVisitIn
                           {format(parseISO(v.date), 'd MMM yyyy', { locale: ru })}
                         </span>
                       </div>
-                      {v.notes && (
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                          {v.notes}
-                        </p>
-                      )}
+                      <FieldGroup className="space-y-3">
+                        <Field>
+                          <FieldLabel>Что обсуждали / чем работали</FieldLabel>
+                          <Textarea
+                            value={v.id === visit.id ? visit.notes : v.notes}
+                            onChange={(e) =>
+                              v.id === visit.id
+                                ? onUpdate({ notes: e.target.value })
+                                : onUpdateVisit(v.id, { notes: e.target.value })
+                            }
+                            className="min-h-[80px]"
+                          />
+                        </Field>
+                        <Field>
+                          <FieldLabel>Договорились на следующий раз</FieldLabel>
+                          <Textarea
+                            value={v.id === visit.id ? visit.nextPlan : v.nextPlan}
+                            onChange={(e) =>
+                              v.id === visit.id
+                                ? onUpdate({ nextPlan: e.target.value })
+                                : onUpdateVisit(v.id, { nextPlan: e.target.value })
+                            }
+                            className="min-h-[70px]"
+                          />
+                        </Field>
+                      </FieldGroup>
                     </div>
                   ))}
               </div>

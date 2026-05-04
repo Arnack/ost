@@ -7,6 +7,13 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Table,
   TableBody,
   TableCell,
@@ -23,34 +30,31 @@ interface TabNeuroTestsProps {
 }
 
 const defaultTests = [
-  'Ласега',
-  'Нери',
-  'Дежерина',
-  'Бонне',
-  'Вассермана',
-  'Мацкевича',
-  'Сикара',
-  'Турина',
-  'Патрика (FABER)',
-  'Кемпа',
-  'Гельмана',
-  'Спурлинга',
-  'Кернига',
-  'Брудзинского',
+  'Ромберг',
+  'Квадрат',
+  'Пальце-носовая проба',
+  'Подвижность суставов',
+  'Стабильность левая',
+  'Стабильность правая',
+  'Наклон вперёд',
+  'Наклон назад',
+  'Наклон влево',
+  'Наклон вправо',
 ]
 
 export function TabNeuroTests({ visit, allVisits, onUpdate }: TabNeuroTestsProps) {
-  // Get previous visits for comparison (up to last 3)
   const previousVisits = allVisits
     .filter((v) => v.id !== visit.id && new Date(v.date) < new Date(visit.date))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 2)
+    .slice(0, 4)
 
   // Add new test
   const addTest = (testName?: string) => {
     const newTest: NeuroTest = {
       id: crypto.randomUUID(),
       name: testName || 'Новый тест',
+      status: 'normal',
+      postStatus: 'normal',
       results: {
         current: '',
       },
@@ -62,11 +66,14 @@ export function TabNeuroTests({ visit, allVisits, onUpdate }: TabNeuroTestsProps
   }
 
   // Update test
-  const updateTest = (testId: string, field: 'name' | 'current' | 'postSession', value: string) => {
+  const updateTest = (testId: string, field: 'name' | 'current' | 'postSession' | 'status' | 'postStatus', value: string) => {
     const updatedTests = visit.neuroTests.map((test) => {
       if (test.id === testId) {
         if (field === 'name') {
           return { ...test, name: value }
+        }
+        if (field === 'status' || field === 'postStatus') {
+          return { ...test, [field]: value as NeuroTest['status'] }
         }
         return {
           ...test,
@@ -102,6 +109,8 @@ export function TabNeuroTests({ visit, allVisits, onUpdate }: TabNeuroTestsProps
     const newTests: NeuroTest[] = defaultTests.map((name) => ({
       id: crypto.randomUUID(),
       name,
+      status: 'normal',
+      postStatus: 'normal',
       results: { current: '' },
     }))
     onUpdate({ neuroTests: newTests })
@@ -137,18 +146,15 @@ export function TabNeuroTests({ visit, allVisits, onUpdate }: TabNeuroTestsProps
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
                       <TableHead className="w-[200px]">Тест</TableHead>
+                      <TableHead>Статус до</TableHead>
                       <TableHead>До сеанса</TableHead>
+                      <TableHead>Статус после</TableHead>
                       <TableHead>После сеанса</TableHead>
-                      {previousVisits.length > 0 && (
-                        <TableHead className="text-muted-foreground">
-                          Пред. визит
+                      {previousVisits.map((_, index) => (
+                        <TableHead key={index} className="text-muted-foreground">
+                          Визит -{index + 1}
                         </TableHead>
-                      )}
-                      {previousVisits.length > 1 && (
-                        <TableHead className="text-muted-foreground">
-                          2 визита назад
-                        </TableHead>
-                      )}
+                      ))}
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -163,12 +169,40 @@ export function TabNeuroTests({ visit, allVisits, onUpdate }: TabNeuroTestsProps
                           />
                         </TableCell>
                         <TableCell>
+                          <Select
+                            value={test.status || 'normal'}
+                            onValueChange={(value) => updateTest(test.id, 'status', value)}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="normal">Норма</SelectItem>
+                              <SelectItem value="deviation">Отклонение</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
                           <Input
                             value={test.results.current}
                             onChange={(e) => updateTest(test.id, 'current', e.target.value)}
                             placeholder="+/-, L/R, описание"
                             className="h-9"
                           />
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={test.postStatus || 'normal'}
+                            onValueChange={(value) => updateTest(test.id, 'postStatus', value)}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="normal">Норма</SelectItem>
+                              <SelectItem value="deviation">Отклонение</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell>
                           <Input
@@ -178,16 +212,11 @@ export function TabNeuroTests({ visit, allVisits, onUpdate }: TabNeuroTestsProps
                             className="h-9"
                           />
                         </TableCell>
-                        {previousVisits.length > 0 && (
-                          <TableCell className="text-muted-foreground text-sm">
-                            {getPreviousResult(test.name, 0) || '—'}
+                        {previousVisits.map((_, index) => (
+                          <TableCell key={index} className="text-muted-foreground text-sm">
+                            {getPreviousResult(test.name, index) || '—'}
                           </TableCell>
-                        )}
-                        {previousVisits.length > 1 && (
-                          <TableCell className="text-muted-foreground text-sm">
-                            {getPreviousResult(test.name, 1) || '—'}
-                          </TableCell>
-                        )}
+                        ))}
                         <TableCell>
                           <Button
                             variant="ghost"

@@ -12,6 +12,7 @@ import {
   isWithinInterval,
 } from "date-fns"
 import { ru } from "date-fns/locale"
+import { toast } from "sonner"
 import {
   Users,
   Calendar as CalendarIcon,
@@ -51,6 +52,7 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { storage } from "@/lib/storage"
 import type { Client, Appointment, Payment } from "@/lib/types"
+import { analyzeClientHistory } from "@/lib/claude"
 
 // Compute colors from CSS vars at runtime
 const CHART_COLORS = {
@@ -76,6 +78,9 @@ export default function AnalyticsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
   const [timeRange, setTimeRange] = useState<TimeRange>("6m")
+  const [selectedClientId, setSelectedClientId] = useState("")
+  const [historyAnalysis, setHistoryAnalysis] = useState("")
+  const [isHistoryAnalyzing, setIsHistoryAnalyzing] = useState(false)
 
   useEffect(() => {
     setClients(storage.getClients())
@@ -121,11 +126,11 @@ export default function AnalyticsPage() {
         const date = parseISO(p.date)
         return (
           isWithinInterval(date, { start: monthStart, end: monthEnd }) &&
-          p.status === "paid"
+          p.status !== "cancelled"
         )
       })
 
-      const revenue = monthPayments.reduce((sum, p) => sum + p.amount, 0)
+      const revenue = monthPayments.reduce((sum, p) => sum + (p.paid ?? p.amount), 0)
 
       return {
         month: format(month, "MMM", { locale: ru }),
@@ -156,11 +161,11 @@ export default function AnalyticsPage() {
       const date = parseISO(p.date)
       return (
         isWithinInterval(date, { start: dateRange.start, end: dateRange.end }) &&
-        p.status === "paid"
+        p.status !== "cancelled"
       )
     })
 
-    const totalRevenue = rangePayments.reduce((sum, p) => sum + p.amount, 0)
+    const totalRevenue = rangePayments.reduce((sum, p) => sum + (p.paid ?? p.amount), 0)
     const avgVisitPrice =
       completedAppointments.length > 0
         ? totalRevenue / completedAppointments.length
@@ -169,7 +174,7 @@ export default function AnalyticsPage() {
     // Calculate returning clients
     const clientVisitCounts = appointments.reduce(
       (acc, a) => {
-        if (a.status === "completed") {
+        if (a.status === "completed" && a.clientId) {
           acc[a.clientId] = (acc[a.clientId] || 0) + 1
         }
         return acc
@@ -270,6 +275,69 @@ export default function AnalyticsPage() {
       currency: "RUB",
       minimumFractionDigits: 0,
     }).format(value)
+  }
+
+  const selectedClient = useMemo(() => {
+    return clients.find((client) => client.id === selectedClientId) || clients.find((client) => client.visits.length > 0)
+  }, [clients, selectedClientId])
+
+  const clientProgressData = useMemo(() => {
+    if (!selectedClient) return []
+    return selectedClient.visits.map((visit, index) => ({
+      visit: `#${index + 1}`,
+      date: format(parseISO(visit.date), "dd.MM", { locale: ru }),
+      spine: visit.spineData.segments.filter((segment) => segment.status !== "normal").length,
+      regions: visit.bodyRegions.regions.filter((region) => region.status !== "neutral").length,
+      chains: visit.muscleChains.chains.filter((chain) => chain.status === "break").length,
+      tests: visit.neuroTests.length,
+    }))
+  }, [selectedClient])
+
+  const weightDynamicsData = useMemo(() => {
+    if (!selectedClient) return []
+    return selectedClient.visits.map((visit, index) => ({
+      visit: `#${index + 1}`,
+      left: visit.gravityData.weightLeft,
+      right: visit.gravityData.weightRight,
+      difference: Math.abs(visit.gravityData.weightLeft - visit.gravityData.weightRight),
+    }))
+  }, [selectedClient])
+
+  const regionSummaryData = useMemo(() => {
+    if (!selectedClient) return []
+    const counts = selectedClient.visits.reduce<Record<string, number>>((acc, visit) => {
+      visit.bodyRegions.regions
+        .filter((region) => region.status !== "neutral")
+        .forEach((region) => {
+          acc[region.name] = (acc[region.name] || 0) + 1
+        })
+      return acc
+    }, {})
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8)
+  }, [selectedClient])
+
+  const comparisonPhotos = useMemo(() => {
+    if (!selectedClient) return []
+    return ["front", "back", "left", "right"].map((projection) => ({
+      projection,
+      photos: selectedClient.photos.filter((photo) => photo.projection === projection).slice(-2),
+    }))
+  }, [selectedClient])
+
+  const handleAnalyzeClientHistory = async () => {
+    if (!selectedClient) return
+    setIsHistoryAnalyzing(true)
+    try {
+      const analysis = await analyzeClientHistory(selectedClient)
+      setHistoryAnalysis(analysis)
+    } catch {
+      toast.error("Не удалось выполнить AI-анализ истории")
+    } finally {
+      setIsHistoryAnalyzing(false)
+    }
   }
 
   return (
@@ -584,6 +652,184 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Summary */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Динамика лечения клиента</CardTitle>
+            <CardDescription>Прогресс, вес, регионы, фото и история визитов</CardDescription>
+          </div>
+          <Select
+            value={selectedClient?.id || ""}
+            onValueChange={(value) => {
+              setSelectedClientId(value)
+              setHistoryAnalysis("")
+            }}
+          >
+            <SelectTrigger className="min-h-[44px] w-[260px]">
+              <SelectValue placeholder="Выберите клиента" />
+            </SelectTrigger>
+            <SelectContent>
+              {clients.map((client) => (
+                <SelectItem key={client.id} value={client.id}>
+                  {client.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent>
+          {!selectedClient ? (
+            <p className="py-8 text-center text-muted-foreground">Нет клиентов с визитами</p>
+          ) : (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div>
+                  <h3 className="mb-3 font-medium">Прогресс по визитам</h3>
+                  <ChartContainer
+                    config={{
+                      spine: { label: "Позвоночник", color: CHART_COLORS.primary },
+                      regions: { label: "Регионы", color: CHART_COLORS.accent },
+                      chains: { label: "Цепи", color: CHART_COLORS.secondary },
+                    }}
+                    className="h-[260px]"
+                  >
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={clientProgressData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis dataKey="visit" />
+                        <YAxis />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Legend />
+                        <Line type="monotone" dataKey="spine" stroke={CHART_COLORS.primary} name="Позвоночник" />
+                        <Line type="monotone" dataKey="regions" stroke={CHART_COLORS.accent} name="Регионы" />
+                        <Line type="monotone" dataKey="chains" stroke={CHART_COLORS.secondary} name="Цепи" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
+                <div>
+                  <h3 className="mb-3 font-medium">Вес левая/правая</h3>
+                  <ChartContainer
+                    config={{
+                      left: { label: "Левая", color: CHART_COLORS.primary },
+                      right: { label: "Правая", color: CHART_COLORS.accent },
+                    }}
+                    className="h-[260px]"
+                  >
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={weightDynamicsData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis dataKey="visit" />
+                        <YAxis />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Legend />
+                        <Line type="monotone" dataKey="left" stroke={CHART_COLORS.primary} name="Левая" />
+                        <Line type="monotone" dataKey="right" stroke={CHART_COLORS.accent} name="Правая" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div>
+                  <h3 className="mb-3 font-medium">Стабильность регионов</h3>
+                  <ChartContainer
+                    config={{ value: { label: "Отметок", color: CHART_COLORS.primary } }}
+                    className="h-[260px]"
+                  >
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={regionSummaryData} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis type="number" />
+                        <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 12 }} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar dataKey="value" fill={CHART_COLORS.primary} radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
+                <div>
+                  <h3 className="mb-3 font-medium">Фото до/после</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {comparisonPhotos.map(({ projection, photos }) => (
+                      <div key={projection} className="rounded-lg border p-3">
+                        <p className="mb-2 text-sm font-medium">
+                          {projection === "front" ? "Спереди" : projection === "back" ? "Сзади" : projection === "left" ? "Слева" : "Справа"}
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {photos.length === 0 ? (
+                            <div className="col-span-2 flex h-24 items-center justify-center rounded bg-muted text-xs text-muted-foreground">
+                              Нет фото
+                            </div>
+                          ) : (
+                            photos.map((photo) => (
+                              <img
+                                key={photo.id}
+                                src={photo.url}
+                                alt={photo.description || projection}
+                                className="h-24 w-full rounded object-cover"
+                              />
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-auto rounded-lg border">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="p-2 text-left">Дата</th>
+                      <th className="p-2 text-left">Позвоночник</th>
+                      <th className="p-2 text-left">Тесты</th>
+                      <th className="p-2 text-left">Вес Л/П</th>
+                      <th className="p-2 text-left">Регионы</th>
+                      <th className="p-2 text-left">Цепи</th>
+                      <th className="p-2 text-left">Заметки</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedClient.visits.map((visit) => (
+                      <tr key={visit.id} className="border-t">
+                        <td className="p-2">{format(parseISO(visit.date), "dd.MM.yyyy", { locale: ru })}</td>
+                        <td className="p-2">{visit.spineData.segments.filter((s) => s.status !== "normal").length}</td>
+                        <td className="p-2">{visit.neuroTests.length}</td>
+                        <td className="p-2">{visit.gravityData.weightLeft}/{visit.gravityData.weightRight}</td>
+                        <td className="p-2">{visit.bodyRegions.regions.filter((r) => r.status !== "neutral").length}</td>
+                        <td className="p-2">{visit.muscleChains.chains.filter((c) => c.status === "break").length}</td>
+                        <td className="max-w-[260px] truncate p-2">{visit.notes || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="rounded-lg border p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="font-medium">AI-отчёт по истории клиента</h3>
+                  <Button onClick={handleAnalyzeClientHistory} disabled={isHistoryAnalyzing}>
+                    {isHistoryAnalyzing ? "Анализирую..." : "Проанализировать историю"}
+                  </Button>
+                </div>
+                {historyAnalysis ? (
+                  <div className="whitespace-pre-wrap rounded-lg bg-primary/5 p-4 text-sm">
+                    {historyAnalysis}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Нажмите кнопку, чтобы получить Claude-анализ полной истории клиента.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Сводка за период</CardTitle>
