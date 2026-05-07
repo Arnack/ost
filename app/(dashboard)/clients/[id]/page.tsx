@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Save, Trash2, FileDown } from 'lucide-react'
 import { toast } from 'sonner'
@@ -167,6 +167,20 @@ export default function ClientCardPage() {
     }
   }, [client, currentVisit])
 
+  const visitsWithCurrent = useMemo(() => {
+    if (!client) return []
+    if (!currentVisit) return client.visits
+
+    const visitIndex = client.visits.findIndex((visit) => visit.id === currentVisit.id)
+    if (visitIndex < 0) {
+      return [...client.visits, currentVisit]
+    }
+
+    return client.visits.map((visit) =>
+      visit.id === currentVisit.id ? currentVisit : visit
+    )
+  }, [client, currentVisit])
+
   if (!client) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -249,7 +263,7 @@ export default function ClientCardPage() {
 
           <TabsContent value="spine" className="h-full m-0">
             {currentVisit && (
-              <TabSpine visit={currentVisit} visits={client?.visits} onUpdate={updateVisit} />
+              <TabSpine visit={currentVisit} visits={visitsWithCurrent} onUpdate={updateVisit} />
             )}
           </TabsContent>
 
@@ -257,7 +271,7 @@ export default function ClientCardPage() {
             {currentVisit && (
               <TabNeuroTests
                 visit={currentVisit}
-                allVisits={client.visits}
+                allVisits={visitsWithCurrent}
                 onUpdate={updateVisit}
               />
             )}
