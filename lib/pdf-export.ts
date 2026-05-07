@@ -1,232 +1,167 @@
 // PDF Export functionality for OsteoTab
-import { jsPDF } from 'jspdf'
-import 'jspdf-autotable'
 import type { Client, Visit } from './types'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { getPayments } from './storage'
 
-// Custom AutoTable type for jsPDF
-interface AutoTableJsPDF extends jsPDF {
-  autoTable: (options: {
-    head?: (string[])[]
-    body?: (string | number)[][]
-    startY?: number
-    theme?: string
-    styles?: Record<string, unknown>
-    headStyles?: Record<string, unknown>
-  }) => void
-  lastAutoTable?: { finalY: number }
+function escapeHtml(value: string | number | undefined | null): string {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;')
 }
 
-function ensureSpace(doc: jsPDF, yPos: number, required = 30): number {
-  if (yPos + required > 280) {
-    doc.addPage()
-    return 20
+function formatDate(value: string): string {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '-' : format(date, 'dd.MM.yyyy', { locale: ru })
+}
+
+function renderTextBlock(label: string, value: string | undefined): string {
+  if (!value) return ''
+  return `<div class="text-block"><strong>${escapeHtml(label)}:</strong><p>${escapeHtml(value)}</p></div>`
+}
+
+function openPrintDocument(title: string, body: string): void {
+  const printWindow = window.open('', '_blank', 'noopener,noreferrer')
+
+  if (!printWindow) {
+    throw new Error('Не удалось открыть окно печати. Разрешите всплывающие окна для экспорта PDF.')
   }
-  return yPos
-}
 
-function addWrappedText(doc: jsPDF, label: string, value: string, yPos: number, pageWidth: number): number {
-  if (!value) return yPos
-  yPos = ensureSpace(doc, yPos, 25)
-  doc.setFont('helvetica', 'bold')
-  doc.text(`${label}:`, 14, yPos)
-  doc.setFont('helvetica', 'normal')
-  const splitText = doc.splitTextToSize(value, pageWidth - 28)
-  doc.text(splitText, 14, yPos + 5)
-  return yPos + 10 + splitText.length * 4
+  printWindow.document.write(`<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    @page { margin: 14mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: #172326;
+      font-family: Georgia, 'Times New Roman', Times, serif;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    h1, h2, h3 { margin: 0 0 8px; color: #123f44; }
+    h1 { font-size: 24px; text-align: center; margin-bottom: 18px; }
+    h2 { font-size: 17px; margin-top: 20px; border-bottom: 1px solid #d7e4e6; padding-bottom: 5px; }
+    h3 { font-size: 14px; margin-top: 14px; }
+    p { margin: 4px 0 0; white-space: pre-wrap; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; page-break-inside: auto; }
+    tr { page-break-inside: avoid; page-break-after: auto; }
+    th, td { border: 1px solid #d7e4e6; padding: 6px; text-align: left; vertical-align: top; }
+    th { background: #1a6b72; color: white; font-weight: 700; }
+    .meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 18px; margin-bottom: 12px; }
+    .text-block { margin: 8px 0; page-break-inside: avoid; }
+    .muted { color: #667a80; }
+    .print-note { margin-top: 24px; font-size: 10px; color: #667a80; }
+    @media print { .no-print { display: none; } }
+  </style>
+</head>
+<body>
+  ${body}
+  <script>
+    window.addEventListener('load', () => {
+      window.focus()
+      window.print()
+    })
+  </script>
+</body>
+</html>`)
+  printWindow.document.close()
 }
 
 export function exportClientToPDF(client: Client): void {
-  const doc = new jsPDF() as AutoTableJsPDF
-  const pageWidth = doc.internal.pageSize.getWidth()
-  
-  // Title
-  doc.setFontSize(20)
-  doc.text('Карточка клиента', pageWidth / 2, 20, { align: 'center' })
-  
-  // Client info
-  doc.setFontSize(14)
-  doc.text(client.name, 14, 35)
-  
-  doc.setFontSize(10)
-  let yPos = 45
-  
-  if (client.phone) {
-    doc.text(`Телефон: ${client.phone}`, 14, yPos)
-    yPos += 7
-  }
-  if (client.email) {
-    doc.text(`Email: ${client.email}`, 14, yPos)
-    yPos += 7
-  }
-  if (client.birthDate) {
-    doc.text(`Дата рождения: ${format(new Date(client.birthDate), 'dd.MM.yyyy')}`, 14, yPos)
-    yPos += 7
-  }
-  
-  doc.text(`Первый визит: ${format(new Date(client.firstVisit), 'dd.MM.yyyy', { locale: ru })}`, 14, yPos)
-  yPos += 7
-  doc.text(`Последний визит: ${format(new Date(client.lastVisit), 'dd.MM.yyyy', { locale: ru })}`, 14, yPos)
-  yPos += 7
-  doc.text(`Всего визитов: ${client.visits.length}`, 14, yPos)
-  yPos += 15
-  
-  // Anamnesis section
-  if (yPos > 250) {
-    doc.addPage()
-    yPos = 20
-  }
-  
-  doc.setFontSize(12)
-  doc.text('Анамнез', 14, yPos)
-  yPos += 10
-  
-  doc.setFontSize(10)
   const anamnesis = client.anamnesis
   const anamnesisFields = [
     { label: 'Симптомы', value: anamnesis.symptoms },
+    { label: 'Первые симптомы', value: anamnesis.firstSymptoms },
     { label: 'Жалобы', value: anamnesis.complaints },
     { label: 'Травмы', value: anamnesis.injuries },
     { label: 'Шрамы', value: anamnesis.scars },
     { label: 'Препараты', value: anamnesis.medications },
     { label: 'Родовые травмы', value: anamnesis.birthTraumas },
+    { label: 'Положение сна', value: anamnesis.sleepPositions },
+    { label: 'Специалисты', value: anamnesis.specialists },
+    { label: 'Лечение', value: anamnesis.treatment },
+    { label: 'Результат лечения', value: anamnesis.treatmentResult },
     { label: 'Диагноз', value: anamnesis.diagnosis },
+    { label: 'Дополнительно', value: anamnesis.additionalInfo },
+    { label: 'Желаемый результат', value: anamnesis.desiredResult },
   ]
-  
-  for (const field of anamnesisFields) {
-    if (field.value) {
-      if (yPos > 270) {
-        doc.addPage()
-        yPos = 20
-      }
-      doc.setFont('helvetica', 'bold')
-      doc.text(`${field.label}:`, 14, yPos)
-      doc.setFont('helvetica', 'normal')
-      const splitText = doc.splitTextToSize(field.value, pageWidth - 28)
-      doc.text(splitText, 14, yPos + 5)
-      yPos += 10 + (splitText.length * 4)
-    }
-  }
-  
-  // Visits section
-  if (client.visits.length > 0) {
-    if (yPos > 220) {
-      doc.addPage()
-      yPos = 20
-    }
-    
-    doc.setFontSize(12)
-    doc.text('История визитов', 14, yPos)
-    yPos += 10
-    
-    const visitsData = client.visits.map((visit: Visit, index: number) => [
-      `#${index + 1}`,
-      format(new Date(visit.date), 'dd.MM.yyyy', { locale: ru }),
-      visit.notes ? (visit.notes.length > 50 ? visit.notes.substring(0, 50) + '...' : visit.notes) : '-',
-      visit.nextPlan ? (visit.nextPlan.length > 30 ? visit.nextPlan.substring(0, 30) + '...' : visit.nextPlan) : '-',
-    ])
-    
-    doc.autoTable({
-      head: [['№', 'Дата', 'Заметки', 'План']],
-      body: visitsData,
-      startY: yPos,
-      theme: 'striped',
-      styles: { fontSize: 9, cellPadding: 2 },
-      headStyles: { fillColor: [26, 107, 114] },
-    })
-    yPos = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 12 : yPos + 20
-
-    const latestVisit = client.visits[client.visits.length - 1]
-    if (latestVisit) {
-      yPos = ensureSpace(doc, yPos, 40)
-      doc.setFontSize(12)
-      doc.text('Сводка последнего визита', 14, yPos)
-      yPos += 10
-
-      const clinicalData = [
-        ['Позвоночник', latestVisit.spineData.segments.filter((segment) => segment.status !== 'normal').length],
-        ['Нейротесты', latestVisit.neuroTests.length],
-        ['Регионы тела', latestVisit.bodyRegions.regions.filter((region) => region.status !== 'neutral').length],
-        ['Мышечные цепи', latestVisit.muscleChains.chains.filter((chain) => chain.status === 'break').length],
-        ['Вес Л/П', `${latestVisit.gravityData.weightLeft}/${latestVisit.gravityData.weightRight}`],
-      ]
-
-      doc.autoTable({
-        head: [['Показатель', 'Значение']],
-        body: clinicalData,
-        startY: yPos,
-        theme: 'striped',
-        styles: { fontSize: 9, cellPadding: 2 },
-        headStyles: { fillColor: [26, 107, 114] },
-      })
-      yPos = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 10 : yPos + 20
-      yPos = addWrappedText(doc, 'Что обсуждали / чем работали', latestVisit.notes, yPos, pageWidth)
-      yPos = addWrappedText(doc, 'Договорились на следующий раз', latestVisit.nextPlan, yPos, pageWidth)
-      yPos = addWrappedText(doc, 'AI-анализ', latestVisit.aiSummary || '', yPos, pageWidth)
-    }
-  }
-
+  const visitsRows = client.visits.map((visit: Visit, index: number) => `
+    <tr>
+      <td>${index + 1}</td>
+      <td>${formatDate(visit.date)}</td>
+      <td>${escapeHtml(visit.notes || '-')}</td>
+      <td>${escapeHtml(visit.nextPlan || '-')}</td>
+    </tr>`).join('')
+  const latestVisit = client.visits[client.visits.length - 1]
   const clientPayments = [
     ...client.payments,
     ...getPayments().filter((payment) => payment.clientId === client.id && !client.payments.some((item) => item.id === payment.id)),
   ]
+  const paymentsRows = clientPayments.map((payment, index) => `
+    <tr>
+      <td>${index + 1}</td>
+      <td>${formatDate(payment.date)}</td>
+      <td>${escapeHtml(payment.cost ?? payment.amount)}</td>
+      <td>${escapeHtml(payment.paid ?? payment.amount)}</td>
+      <td>${escapeHtml(payment.debt ?? 0)}</td>
+      <td>${escapeHtml(payment.status)}</td>
+    </tr>`).join('')
 
-  if (clientPayments.length > 0) {
-    yPos = ensureSpace(doc, yPos, 40)
-    doc.setFontSize(12)
-    doc.text('Оплаты', 14, yPos)
-    yPos += 10
+  openPrintDocument(`Карточка клиента - ${client.name}`, `
+    <h1>Карточка клиента</h1>
+    <h2>${escapeHtml(client.name)}</h2>
+    <div class="meta">
+      <div><strong>Телефон:</strong> ${escapeHtml(client.phone || '-')}</div>
+      <div><strong>Email:</strong> ${escapeHtml(client.email || '-')}</div>
+      <div><strong>Дата рождения:</strong> ${client.birthDate ? formatDate(client.birthDate) : '-'}</div>
+      <div><strong>Первый визит:</strong> ${formatDate(client.firstVisit)}</div>
+      <div><strong>Последний визит:</strong> ${formatDate(client.lastVisit)}</div>
+      <div><strong>Всего визитов:</strong> ${client.visits.length}</div>
+    </div>
 
-    const paymentsData = clientPayments.map((payment, index) => [
-      index + 1,
-      format(new Date(payment.date), 'dd.MM.yyyy', { locale: ru }),
-      payment.cost ?? payment.amount,
-      payment.paid ?? payment.amount,
-      payment.debt ?? 0,
-      payment.status,
-    ])
+    <h2>Анамнез</h2>
+    ${anamnesisFields.map((field) => renderTextBlock(field.label, field.value)).join('') || '<p class="muted">Нет данных</p>'}
 
-    doc.autoTable({
-      head: [['№', 'Дата', 'План', 'Оплачено', 'Долг', 'Статус']],
-      body: paymentsData,
-      startY: yPos,
-      theme: 'striped',
-      styles: { fontSize: 9, cellPadding: 2 },
-      headStyles: { fillColor: [26, 107, 114] },
-    })
-  }
-  
-  // Save PDF
-  const fileName = `client_${client.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`
-  doc.save(fileName)
+    <h2>История визитов</h2>
+    ${visitsRows ? `<table><thead><tr><th>№</th><th>Дата</th><th>Что обсуждали / чем работали</th><th>Договорились на следующий раз</th></tr></thead><tbody>${visitsRows}</tbody></table>` : '<p class="muted">Нет визитов</p>'}
+
+    ${latestVisit ? `<h2>Сводка последнего визита</h2>
+      <div class="meta">
+        <div><strong>Позвоночник:</strong> ${latestVisit.spineData.segments.filter((segment) => segment.status !== 'normal').length}</div>
+        <div><strong>Нейротесты:</strong> ${latestVisit.neuroTests.length}</div>
+        <div><strong>Регионы тела:</strong> ${latestVisit.bodyRegions.regions.filter((region) => region.status !== 'neutral').length}</div>
+        <div><strong>Мышечные цепи:</strong> ${latestVisit.muscleChains.chains.filter((chain) => chain.status === 'break').length}</div>
+        <div><strong>Вес Л/П:</strong> ${escapeHtml(`${latestVisit.gravityData.weightLeft}/${latestVisit.gravityData.weightRight}`)}</div>
+      </div>
+      ${renderTextBlock('AI-анализ', latestVisit.aiSummary)}` : ''}
+
+    <h2>Оплаты</h2>
+    ${paymentsRows ? `<table><thead><tr><th>№</th><th>Дата</th><th>План</th><th>Оплачено</th><th>Долг</th><th>Статус</th></tr></thead><tbody>${paymentsRows}</tbody></table>` : '<p class="muted">Нет оплат</p>'}
+    <p class="print-note">В окне печати выберите «Сохранить как PDF».</p>
+  `)
 }
 
 export function exportAllClientsToPDF(clients: Client[]): void {
-  const doc = new jsPDF() as AutoTableJsPDF
-  
-  doc.setFontSize(16)
-  doc.text('Список клиентов', 14, 20)
-  
-  const clientsData = clients.map((client, index) => [
-    index + 1,
-    client.name,
-    client.phone || '-',
-    format(new Date(client.firstVisit), 'dd.MM.yyyy', { locale: ru }),
-    format(new Date(client.lastVisit), 'dd.MM.yyyy', { locale: ru }),
-    client.visits.length,
-  ])
-  
-  doc.autoTable({
-    head: [['№', 'Имя', 'Телефон', 'Первый визит', 'Последний визит', 'Визитов']],
-    body: clientsData,
-    startY: 30,
-    theme: 'striped',
-    styles: { fontSize: 10, cellPadding: 3 },
-    headStyles: { fillColor: [26, 107, 114] },
-  })
-  
-  const fileName = `clients_list_${new Date().toISOString().split('T')[0]}.pdf`
-  doc.save(fileName)
+  const clientsRows = clients.map((client, index) => `
+    <tr>
+      <td>${index + 1}</td>
+      <td>${escapeHtml(client.name)}</td>
+      <td>${escapeHtml(client.phone || '-')}</td>
+      <td>${formatDate(client.firstVisit)}</td>
+      <td>${formatDate(client.lastVisit)}</td>
+      <td>${client.visits.length}</td>
+    </tr>`).join('')
+
+  openPrintDocument('Список клиентов', `
+    <h1>Список клиентов</h1>
+    ${clientsRows ? `<table><thead><tr><th>№</th><th>Имя</th><th>Телефон</th><th>Первый визит</th><th>Последний визит</th><th>Визитов</th></tr></thead><tbody>${clientsRows}</tbody></table>` : '<p class="muted">Нет клиентов</p>'}
+    <p class="print-note">В окне печати выберите «Сохранить как PDF».</p>
+  `)
 }

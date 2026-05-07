@@ -249,7 +249,7 @@ export default function ClientCardPage() {
 
           <TabsContent value="spine" className="h-full m-0">
             {currentVisit && (
-              <TabSpine visit={currentVisit} onUpdate={updateVisit} />
+              <TabSpine visit={currentVisit} visits={client?.visits} onUpdate={updateVisit} />
             )}
           </TabsContent>
 

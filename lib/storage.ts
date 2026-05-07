@@ -184,16 +184,46 @@ export function exportData(): string {
     payments: getPayments(),
     settings: getSettings(),
     exportDate: new Date().toISOString(),
-  })
+  }, null, 2)
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isSettings(value: unknown): value is Settings {
+  return isRecord(value)
+    && typeof value.defaultSessionDuration === 'number'
+    && typeof value.defaultSessionCost === 'number'
 }
 
 export function importData(jsonString: string): boolean {
   try {
-    const data = JSON.parse(jsonString)
-    if (data.clients) setClients(data.clients)
-    if (data.appointments) setAppointments(data.appointments)
-    if (data.payments) setPayments(data.payments)
-    if (data.settings) saveSettings(data.settings)
+    const data: unknown = JSON.parse(jsonString)
+
+    if (!isRecord(data)) return false
+
+    const clients = data.clients
+    const appointments = data.appointments
+    const payments = data.payments
+    const settings = data.settings
+    const hasKnownData = Array.isArray(clients)
+      || Array.isArray(appointments)
+      || Array.isArray(payments)
+      || isSettings(settings)
+
+    if (!hasKnownData) return false
+
+    if (clients !== undefined && !Array.isArray(clients)) return false
+    if (appointments !== undefined && !Array.isArray(appointments)) return false
+    if (payments !== undefined && !Array.isArray(payments)) return false
+    if (settings !== undefined && !isSettings(settings)) return false
+
+    setClients(Array.isArray(clients) ? clients.map((client) => normalizeClient(client as Client)) : [])
+    setAppointments(Array.isArray(appointments) ? appointments as Appointment[] : [])
+    setPayments(Array.isArray(payments) ? payments.map((payment) => normalizePayment(payment as Payment)) : [])
+    saveSettings(isSettings(settings) ? settings : defaultSettings)
+
     return true
   } catch {
     return false
