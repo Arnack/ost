@@ -110,9 +110,13 @@ export default function ClientCardPage() {
     const updatedClient: Client = { ...client, visits: updatedVisits }
     saveClient(updatedClient)
     setClient(updatedClient)
-    // If current visit was deleted, switch to last remaining
+    // If current visit was deleted, switch to last remaining or create new
     if (currentVisit?.id === visitId) {
-      setCurrentVisit(updatedVisits.length > 0 ? updatedVisits[updatedVisits.length - 1] : null)
+      if (updatedVisits.length > 0) {
+        setCurrentVisit(updatedVisits[updatedVisits.length - 1])
+      } else {
+        setCurrentVisit(createEmptyVisit())
+      }
     }
     toast.success('Приём удалён')
   }, [client, currentVisit])

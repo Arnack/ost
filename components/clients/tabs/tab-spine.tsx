@@ -503,7 +503,7 @@ export function TabSpine({ visit, visits = [visit], onUpdate, onDeleteVisit }: T
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-muted-foreground">{count} сегм.</span>
-                            {onDeleteVisit && !isCurrentVisit && (
+                            {onDeleteVisit && (
                               <Button
                                 variant="ghost"
                                 size="icon"
