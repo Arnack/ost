@@ -1,0 +1,36 @@
+<svg width="420" height="900" viewBox="0 0 420 900" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .body { fill: none; stroke: #222; stroke-width: 2; }
+    .chain { fill: #d64545; opacity: 0.85; }
+    .label { font-family: Arial, sans-serif; font-size: 20px; fill: #111; }
+    .small { font-size: 14px; fill: #444; }
+  </style>
+
+  <text x="40" y="40" class="label">Поверхностная задняя линия</text>
+
+  <!-- Head -->
+  <ellipse cx="210" cy="90" rx="55" ry="70" class="body"/>
+
+  <!-- Spine -->
+  <line x1="210" y1="160" x2="210" y2="650" stroke="#222" stroke-width="4"/>
+
+  <!-- Torso -->
+  <path d="M145 170 Q210 140 275 170 L300 360 Q280 520 210 610 Q140 520 120 360 Z" class="body"/>
+
+  <!-- Arms -->
+  <path d="M145 210 Q90 300 85 430 Q90 560 115 670" class="body"/>
+  <path d="M275 210 Q330 300 335 430 Q330 560 305 670" class="body"/>
+
+  <!-- Legs -->
+  <path d="M180 610 Q160 760 175 860" class="body"/>
+  <path d="M240 610 Q260 760 245 860" class="body"/>
+
+  <!-- Posterior chain -->
+  <rect x="198" y="150" width="24" height="520" rx="12" class="chain"/>
+  <ellipse cx="210" cy="130" rx="38" ry="28" class="chain"/>
+  <path d="M165 350 Q210 390 255 350 L245 470 Q210 510 175 470 Z" class="chain"/>
+  <path d="M170 620 Q155 760 165 860" stroke="#d64545" stroke-width="22" fill="none" stroke-linecap="round"/>
+  <path d="M250 620 Q265 760 255 860" stroke="#d64545" stroke-width="22" fill="none" stroke-linecap="round"/>
+
+  <text x="40" y="820" class="small">Трапеции • Разгибатели спины • Ягодичные • Бицепс бедра • Икры</text>
+</svg>

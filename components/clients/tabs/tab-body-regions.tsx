@@ -8,67 +8,69 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import type { Visit, BodyRegion } from '@/lib/types'
+import { format, parseISO } from 'date-fns'
+import { ru } from 'date-fns/locale'
 
 interface TabBodyRegionsProps {
   visit: Visit
+  allVisits?: Visit[]
   onUpdate: (updates: Partial<Visit>) => void
 }
 
-// Body regions for front and back views
+// Body regions for front view — each region has L/R pair info
 const frontRegions = [
-  { id: 'head-front', name: 'Голова', x: 45, y: 5, width: 10, height: 8 },
-  { id: 'neck-front', name: 'Шея', x: 45, y: 13, width: 10, height: 5 },
-  { id: 'chest-left', name: 'Грудь Л', x: 35, y: 18, width: 15, height: 15 },
-  { id: 'chest-right', name: 'Грудь П', x: 50, y: 18, width: 15, height: 15 },
-  { id: 'abdomen-upper', name: 'Живот верх', x: 40, y: 33, width: 20, height: 10 },
-  { id: 'abdomen-lower', name: 'Живот низ', x: 40, y: 43, width: 20, height: 10 },
-  { id: 'pelvis-front', name: 'Таз', x: 38, y: 53, width: 24, height: 10 },
-  { id: 'shoulder-left', name: 'Плечо Л', x: 25, y: 18, width: 10, height: 8 },
-  { id: 'shoulder-right', name: 'Плечо П', x: 65, y: 18, width: 10, height: 8 },
-  { id: 'arm-upper-left', name: 'Предплечье Л', x: 20, y: 26, width: 8, height: 15 },
-  { id: 'arm-upper-right', name: 'Предплечье П', x: 72, y: 26, width: 8, height: 15 },
-  { id: 'arm-lower-left', name: 'Кисть Л', x: 15, y: 41, width: 8, height: 15 },
-  { id: 'arm-lower-right', name: 'Кисть П', x: 77, y: 41, width: 8, height: 15 },
-  { id: 'thigh-left', name: 'Бедро Л', x: 35, y: 63, width: 12, height: 18 },
-  { id: 'thigh-right', name: 'Бедро П', x: 53, y: 63, width: 12, height: 18 },
-  { id: 'knee-left', name: 'Колено Л', x: 36, y: 81, width: 10, height: 5 },
-  { id: 'knee-right', name: 'Колено П', x: 54, y: 81, width: 10, height: 5 },
-  { id: 'shin-left', name: 'Голень Л', x: 36, y: 86, width: 10, height: 10 },
-  { id: 'shin-right', name: 'Голень П', x: 54, y: 86, width: 10, height: 10 },
+  { id: 'head-front',       name: 'Голова',           x: 45, y: 5,  width: 10, height: 8, bodySide: 'center' as const },
+  { id: 'neck-front',       name: 'Шея',              x: 45, y: 13, width: 10, height: 5, bodySide: 'center' as const },
+  { id: 'chest-left',       name: 'Грудь Л',          x: 35, y: 18, width: 15, height: 15, bodySide: 'left' as const },
+  { id: 'chest-right',      name: 'Грудь П',          x: 50, y: 18, width: 15, height: 15, bodySide: 'right' as const },
+  { id: 'abdomen-upper',    name: 'Живот верх',       x: 40, y: 33, width: 20, height: 10, bodySide: 'center' as const },
+  { id: 'abdomen-lower',    name: 'Живот низ',        x: 40, y: 43, width: 20, height: 10, bodySide: 'center' as const },
+  { id: 'pelvis-front',     name: 'Таз',              x: 38, y: 53, width: 24, height: 10, bodySide: 'center' as const },
+  { id: 'shoulder-left',    name: 'Плечо Л',          x: 25, y: 18, width: 10, height: 8, bodySide: 'left' as const },
+  { id: 'shoulder-right',   name: 'Плечо П',          x: 65, y: 18, width: 10, height: 8, bodySide: 'right' as const },
+  { id: 'arm-upper-left',   name: 'Предплечье Л',     x: 20, y: 26, width: 8,  height: 15, bodySide: 'left' as const },
+  { id: 'arm-upper-right',  name: 'Предплечье П',     x: 72, y: 26, width: 8,  height: 15, bodySide: 'right' as const },
+  { id: 'arm-lower-left',   name: 'Кисть Л',          x: 15, y: 41, width: 8,  height: 15, bodySide: 'left' as const },
+  { id: 'arm-lower-right',  name: 'Кисть П',          x: 77, y: 41, width: 8,  height: 15, bodySide: 'right' as const },
+  { id: 'thigh-left',       name: 'Бедро Л',          x: 35, y: 63, width: 12, height: 18, bodySide: 'left' as const },
+  { id: 'thigh-right',      name: 'Бедро П',          x: 53, y: 63, width: 12, height: 18, bodySide: 'right' as const },
+  { id: 'knee-left',        name: 'Колено Л',         x: 36, y: 81, width: 10, height: 5, bodySide: 'left' as const },
+  { id: 'knee-right',       name: 'Колено П',         x: 54, y: 81, width: 10, height: 5, bodySide: 'right' as const },
+  { id: 'shin-left',        name: 'Голень Л',         x: 36, y: 86, width: 10, height: 10, bodySide: 'left' as const },
+  { id: 'shin-right',       name: 'Голень П',         x: 54, y: 86, width: 10, height: 10, bodySide: 'right' as const },
 ]
 
 const backRegions = [
-  { id: 'head-back', name: 'Затылок', x: 45, y: 5, width: 10, height: 8 },
-  { id: 'neck-back', name: 'Шея зад', x: 45, y: 13, width: 10, height: 5 },
-  { id: 'upper-back-left', name: 'Верх спины Л', x: 35, y: 18, width: 15, height: 12 },
-  { id: 'upper-back-right', name: 'Верх спины П', x: 50, y: 18, width: 15, height: 12 },
-  { id: 'mid-back-left', name: 'Сред спины Л', x: 35, y: 30, width: 15, height: 12 },
-  { id: 'mid-back-right', name: 'Сред спины П', x: 50, y: 30, width: 15, height: 12 },
-  { id: 'lower-back-left', name: 'Поясница Л', x: 35, y: 42, width: 15, height: 10 },
-  { id: 'lower-back-right', name: 'Поясница П', x: 50, y: 42, width: 15, height: 10 },
-  { id: 'sacrum', name: 'Крестец', x: 42, y: 52, width: 16, height: 8 },
-  { id: 'glute-left', name: 'Ягодица Л', x: 35, y: 60, width: 15, height: 10 },
-  { id: 'glute-right', name: 'Ягодица П', x: 50, y: 60, width: 15, height: 10 },
-  { id: 'scapula-left', name: 'Лопатка Л', x: 28, y: 20, width: 8, height: 12 },
-  { id: 'scapula-right', name: 'Лопатка П', x: 64, y: 20, width: 8, height: 12 },
-  { id: 'hamstring-left', name: 'Задн бедро Л', x: 35, y: 70, width: 12, height: 15 },
-  { id: 'hamstring-right', name: 'Задн бедро П', x: 53, y: 70, width: 12, height: 15 },
-  { id: 'calf-left', name: 'Икра Л', x: 36, y: 85, width: 10, height: 12 },
-  { id: 'calf-right', name: 'Икра П', x: 54, y: 85, width: 10, height: 12 },
+  { id: 'head-back',         name: 'Затылок',         x: 45, y: 5,  width: 10, height: 8, bodySide: 'center' as const },
+  { id: 'neck-back',         name: 'Шея зад',         x: 45, y: 13, width: 10, height: 5, bodySide: 'center' as const },
+  { id: 'upper-back-left',   name: 'Верх спины Л',    x: 35, y: 18, width: 15, height: 12, bodySide: 'left' as const },
+  { id: 'upper-back-right',  name: 'Верх спины П',    x: 50, y: 18, width: 15, height: 12, bodySide: 'right' as const },
+  { id: 'mid-back-left',     name: 'Сред спины Л',    x: 35, y: 30, width: 15, height: 12, bodySide: 'left' as const },
+  { id: 'mid-back-right',    name: 'Сред спины П',    x: 50, y: 30, width: 15, height: 12, bodySide: 'right' as const },
+  { id: 'lower-back-left',   name: 'Поясница Л',      x: 35, y: 42, width: 15, height: 10, bodySide: 'left' as const },
+  { id: 'lower-back-right',  name: 'Поясница П',      x: 50, y: 42, width: 15, height: 10, bodySide: 'right' as const },
+  { id: 'sacrum',            name: 'Крестец',         x: 42, y: 52, width: 16, height: 8, bodySide: 'center' as const },
+  { id: 'glute-left',        name: 'Ягодица Л',       x: 35, y: 60, width: 15, height: 10, bodySide: 'left' as const },
+  { id: 'glute-right',       name: 'Ягодица П',       x: 50, y: 60, width: 15, height: 10, bodySide: 'right' as const },
+  { id: 'scapula-left',      name: 'Лопатка Л',       x: 28, y: 20, width: 8,  height: 12, bodySide: 'left' as const },
+  { id: 'scapula-right',     name: 'Лопатка П',       x: 64, y: 20, width: 8,  height: 12, bodySide: 'right' as const },
+  { id: 'hamstring-left',    name: 'Задн бедро Л',    x: 35, y: 70, width: 12, height: 15, bodySide: 'left' as const },
+  { id: 'hamstring-right',   name: 'Задн бедро П',    x: 53, y: 70, width: 12, height: 15, bodySide: 'right' as const },
+  { id: 'calf-left',         name: 'Икра Л',          x: 36, y: 85, width: 10, height: 12, bodySide: 'left' as const },
+  { id: 'calf-right',        name: 'Икра П',          x: 54, y: 85, width: 10, height: 12, bodySide: 'right' as const },
 ]
 
-export function TabBodyRegions({ visit, onUpdate }: TabBodyRegionsProps) {
-  const [view, setView] = useState<'front' | 'back'>('front')
+/** Derive pair key from region id: strips -left/-right suffix */
+function getPairKey(id: string): string | null {
+  if (id.endsWith('-left'))  return id.slice(0, -5)
+  if (id.endsWith('-right')) return id.slice(0, -6)
+  if (id.includes('left'))   return id.replace('left', 'pair')
+  if (id.includes('right'))  return id.replace('right', 'pair')
+  return null
+}
 
-  const getRegionMeta = (regionId: string) => {
-    if (regionId.includes('left')) {
-      return { pairKey: regionId.replace('left', 'pair'), bodySide: 'left' as const }
-    }
-    if (regionId.includes('right')) {
-      return { pairKey: regionId.replace('right', 'pair'), bodySide: 'right' as const }
-    }
-    return { pairKey: regionId, bodySide: 'center' as const }
-  }
+export function TabBodyRegions({ visit, allVisits = [], onUpdate }: TabBodyRegionsProps) {
+  const [view, setView] = useState<'front' | 'back'>('front')
 
   // Get region status
   const getRegionStatus = (regionId: string): BodyRegion['status'] => {
@@ -76,12 +78,28 @@ export function TabBodyRegions({ visit, onUpdate }: TabBodyRegionsProps) {
     return region?.status || 'neutral'
   }
 
+  // Compute set of "primary cause" region ids:
+  // if BOTH left and right variants of a region are "-"
+  const primaryCauseIds = new Set<string>()
+  const allRegions = [...frontRegions, ...backRegions]
+  allRegions.forEach((reg) => {
+    if (reg.bodySide === 'left') {
+      const rightId = reg.id.replace('-left', '-right').replace('left', 'right')
+      const leftStatus  = getRegionStatus(reg.id)
+      const rightStatus = getRegionStatus(rightId)
+      if (leftStatus === '-' && rightStatus === '-') {
+        primaryCauseIds.add(reg.id)
+        primaryCauseIds.add(rightId)
+      }
+    }
+  })
+
   // Toggle region status
-  const toggleRegion = (regionId: string, regionName: string, side: 'front' | 'back') => {
+  const toggleRegion = (regionId: string, regionName: string, side: 'front' | 'back', bodySide: 'left' | 'right' | 'center') => {
     const currentRegions = [...visit.bodyRegions.regions]
     const existingIndex = currentRegions.findIndex((r) => r.id === regionId)
     const statuses: BodyRegion['status'][] = ['neutral', '+', '-']
-    const meta = getRegionMeta(regionId)
+    const pairKey = getPairKey(regionId)
 
     if (existingIndex >= 0) {
       const currentStatus = currentRegions[existingIndex].status
@@ -96,25 +114,21 @@ export function TabBodyRegions({ visit, onUpdate }: TabBodyRegionsProps) {
         name: regionName,
         status: '+',
         side,
-        ...meta,
+        bodySide,
+        pairKey: pairKey || undefined,
       })
     }
 
     onUpdate({
-      bodyRegions: {
-        regions: currentRegions,
-      },
+      bodyRegions: { regions: currentRegions },
     })
   }
 
-  // Clear all regions
   const clearAllRegions = () => {
-    onUpdate({
-      bodyRegions: { regions: [] },
-    })
+    onUpdate({ bodyRegions: { regions: [] } })
   }
 
-  // Body diagram component
+  // Body diagram
   const BodyDiagram = ({ regions, side }: { regions: typeof frontRegions; side: 'front' | 'back' }) => (
     <div className="relative bg-muted/30 rounded-lg p-4">
       <svg viewBox="0 0 100 100" className="w-full max-w-xs mx-auto" style={{ aspectRatio: '1/1.2' }}>
@@ -129,6 +143,7 @@ export function TabBodyRegions({ visit, onUpdate }: TabBodyRegionsProps) {
         {/* Clickable regions */}
         {regions.map((region) => {
           const status = getRegionStatus(region.id)
+          const isPrimary = primaryCauseIds.has(region.id)
           return (
             <g key={region.id}>
               <rect
@@ -139,25 +154,29 @@ export function TabBodyRegions({ visit, onUpdate }: TabBodyRegionsProps) {
                 rx="1"
                 className={cn(
                   'cursor-pointer transition-colors',
-                  status === 'neutral' && 'fill-muted/50 stroke-border',
-                  status === '+' && 'fill-success/30 stroke-success',
-                  status === '-' && 'fill-destructive/30 stroke-destructive'
+                  isPrimary && 'animate-pulse',
+                  isPrimary              ? 'fill-destructive/70 stroke-destructive'
+                    : status === 'neutral' ? 'fill-muted/50 stroke-border'
+                    : status === '+'      ? 'fill-success/30 stroke-success'
+                    :                        'fill-destructive/30 stroke-destructive'
                 )}
                 strokeWidth="0.5"
-                onClick={() => toggleRegion(region.id, region.name, side)}
+                onClick={() => toggleRegion(region.id, region.name, side, region.bodySide)}
               />
-              {status !== 'neutral' && (
+              {/* Status label inside cell */}
+              {(status !== 'neutral' || isPrimary) && (
                 <text
                   x={region.x + region.width / 2}
                   y={region.y + region.height / 2 + 1.5}
                   textAnchor="middle"
                   className={cn(
                     'text-[4px] font-bold pointer-events-none',
-                    status === '+' && 'fill-success',
-                    status === '-' && 'fill-destructive'
+                    isPrimary       ? 'fill-white'
+                    : status === '+' ? 'fill-success'
+                    :                   'fill-destructive'
                   )}
                 >
-                  {status}
+                  {isPrimary ? '!' : status}
                 </text>
               )}
             </g>
@@ -167,28 +186,18 @@ export function TabBodyRegions({ visit, onUpdate }: TabBodyRegionsProps) {
     </div>
   )
 
-  // Get marked regions list
   const markedRegions = visit.bodyRegions.regions.filter((r) => r.status !== 'neutral')
-  const primaryCausePairKeys = new Set(
-    visit.bodyRegions.regions
-      .filter((region) => region.status === '-' && region.bodySide !== 'center')
-      .reduce<string[]>((keys, region, _, regions) => {
-        const hasOppositeSide = regions.some(
-          (candidate) =>
-            candidate.pairKey === region.pairKey &&
-            candidate.bodySide !== region.bodySide &&
-            candidate.status === '-'
-        )
-        return hasOppositeSide && region.pairKey ? [...keys, region.pairKey] : keys
-      }, [])
-  )
+  const visitDate = format(parseISO(visit.date), 'd MMMM yyyy', { locale: ru })
 
   return (
     <ScrollArea className="h-full">
       <div className="p-6 space-y-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Регионы тела</CardTitle>
+            <div>
+              <CardTitle>Регионы тела</CardTitle>
+              <p className="text-sm text-muted-foreground mt-0.5">Приём от {visitDate}</p>
+            </div>
             <Button variant="outline" size="sm" onClick={clearAllRegions}>
               Очистить
             </Button>
@@ -210,18 +219,18 @@ export function TabBodyRegions({ visit, onUpdate }: TabBodyRegionsProps) {
             </Tabs>
 
             {/* Legend */}
-            <div className="flex justify-center gap-6 mt-4 p-3 bg-muted/30 rounded-lg">
+            <div className="flex flex-wrap justify-center gap-6 mt-4 p-3 bg-muted/30 rounded-lg">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded bg-success/30 border border-success" />
-                <span className="text-sm">+ Гипертонус</span>
+                <span className="text-sm">+ Стабильно</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded bg-destructive/30 border border-destructive" />
-                <span className="text-sm">− Гипотонус</span>
+                <span className="text-sm">− Нестабильно</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-muted/50 border border-border" />
-                <span className="text-sm">Норма</span>
+                <div className="w-4 h-4 rounded bg-destructive/70 border border-destructive animate-pulse" />
+                <span className="text-sm font-medium text-destructive">! Первопричина (оба — «−»)</span>
               </div>
             </div>
           </CardContent>
@@ -239,35 +248,94 @@ export function TabBodyRegions({ visit, onUpdate }: TabBodyRegionsProps) {
               </p>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                {markedRegions.map((region) => (
-                  <div
-                    key={region.id}
-                    className={cn(
-                      'flex items-center justify-between p-2 rounded-lg border',
-                      primaryCausePairKeys.has(region.pairKey || '') && 'bg-destructive/25 border-destructive',
-                      region.status === '+' && 'bg-success/10 border-success/30',
-                      region.status === '-' && 'bg-destructive/10 border-destructive/30'
-                    )}
-                  >
-                    <span className="text-sm">
-                      {region.name}
-                      {primaryCausePairKeys.has(region.pairKey || '') && (
-                        <span className="ml-1 text-xs text-destructive">причина</span>
+                {markedRegions.map((region) => {
+                  const isPrimary = primaryCauseIds.has(region.id)
+                  return (
+                    <div
+                      key={region.id}
+                      className={cn(
+                        'flex items-center justify-between p-2 rounded-lg border transition-colors',
+                        isPrimary
+                          ? 'bg-destructive/20 border-destructive'
+                          : region.status === '+'
+                            ? 'bg-success/10 border-success/30'
+                            : 'bg-destructive/10 border-destructive/30'
                       )}
-                    </span>
-                    <span className={cn(
-                      'font-bold',
-                      region.status === '+' && 'text-success',
-                      region.status === '-' && 'text-destructive'
-                    )}>
-                      {region.status}
-                    </span>
-                  </div>
-                ))}
+                    >
+                      <span className="text-sm">
+                        {region.name}
+                        {isPrimary && (
+                          <span className="ml-1 text-xs font-bold text-destructive">⚠ причина</span>
+                        )}
+                      </span>
+                      <span className={cn(
+                        'font-bold text-sm',
+                        isPrimary       ? 'text-destructive'
+                        : region.status === '+' ? 'text-success'
+                        :                         'text-destructive'
+                      )}>
+                        {region.status}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </CardContent>
         </Card>
+
+        {/* Timeline across visits */}
+        {allVisits.length > 1 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Динамика по приёмам</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {[...allVisits]
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .map((v, idx, arr) => {
+                    const vDate = format(parseISO(v.date), 'd MMM yyyy', { locale: ru })
+                    const negative = v.bodyRegions.regions.filter((r) => r.status === '-')
+                    const positive = v.bodyRegions.regions.filter((r) => r.status === '+')
+                    const isCurrentVisit = v.id === visit.id
+                    return (
+                      <div
+                        key={v.id}
+                        className={cn(
+                          'rounded-lg border p-3',
+                          isCurrentVisit && 'border-primary bg-primary/5'
+                        )}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className={cn(
+                              'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                              isCurrentVisit ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                            )}>
+                              {arr.length - idx}
+                            </span>
+                            <span className="font-medium text-sm">{vDate}</span>
+                          </div>
+                          <div className="flex gap-3 text-xs text-muted-foreground">
+                            <span className="text-success">+{positive.length}</span>
+                            <span className="text-destructive">−{negative.length}</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {negative.slice(0, 6).map((r) => (
+                            <span key={r.id} className="rounded bg-destructive/20 px-2 py-0.5 text-xs text-destructive">
+                              {r.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </ScrollArea>
   )

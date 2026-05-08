@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Plus, Sparkles, Mic, MicOff } from 'lucide-react'
+import { Plus, Sparkles } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { Separator } from '@/components/ui/separator'
+import { VoiceMicButton } from '@/components/ui/voice-mic-button'
 import { isVoiceSupported, startVoiceInput, stopVoiceInput } from '@/lib/voice'
 import { analyzeVisit } from '@/lib/claude'
 import type { Visit, Client } from '@/lib/types'
@@ -25,10 +26,9 @@ interface TabVisitInfoProps {
 }
 
 export function TabVisitInfo({ visit, client, onUpdate, onUpdateVisit, onNewVisit }: TabVisitInfoProps) {
-  const [isRecording, setIsRecording] = useState(false)
+  const [activeField, setActiveField] = useState<'notes' | 'plan' | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [voiceSupported, setVoiceSupported] = useState(false)
-  const [activeField, setActiveField] = useState<'notes' | 'plan'>('notes')
   const notesRef = useRef<HTMLTextAreaElement>(null)
   const planRef = useRef<HTMLTextAreaElement>(null)
 
@@ -36,42 +36,44 @@ export function TabVisitInfo({ visit, client, onUpdate, onUpdateVisit, onNewVisi
     setVoiceSupported(isVoiceSupported())
   }, [])
 
-  // Voice recording
   const toggleRecording = (field: 'notes' | 'plan') => {
-    if (isRecording) {
+    if (activeField === field) {
       stopVoiceInput()
-      setIsRecording(false)
-      toast.success('Запись остановлена')
-    } else {
-      setActiveField(field)
-      startVoiceInput({
-        onResult: (text) => {
-          if (field === 'notes') {
-            const currentNotes = visit.notes || ''
-            onUpdate({ notes: currentNotes + (currentNotes ? ' ' : '') + text })
-          } else {
-            const currentPlan = visit.nextPlan || ''
-            onUpdate({ nextPlan: currentPlan + (currentPlan ? ' ' : '') + text })
-          }
-        },
-        onError: (error) => {
-          toast.error(error)
-          setIsRecording(false)
-        },
-        onStart: () => {
-          setIsRecording(true)
-          toast.info('Говорите...')
-        },
-        onEnd: () => {
-          setIsRecording(false)
-        },
-        continuous: true,
-        interimResults: false,
-      })
+      setActiveField(null)
+      return
     }
+
+    // Stop any current recording first
+    if (activeField) {
+      stopVoiceInput()
+    }
+
+    setActiveField(field)
+    startVoiceInput({
+      continuous: true,
+      interimResults: true,
+      onResult: (text) => {
+        if (field === 'notes') {
+          const current = visit.notes || ''
+          onUpdate({ notes: current + (current ? ' ' : '') + text })
+        } else {
+          const current = visit.nextPlan || ''
+          onUpdate({ nextPlan: current + (current ? ' ' : '') + text })
+        }
+      },
+      onError: (error) => {
+        toast.error(error)
+        setActiveField(null)
+      },
+      onStart: () => {
+        toast.info('Говорите...')
+      },
+      onEnd: () => {
+        setActiveField(null)
+      },
+    })
   }
 
-  // AI Analysis
   const handleAnalyzeVisit = async () => {
     setIsAnalyzing(true)
     try {
@@ -108,23 +110,11 @@ export function TabVisitInfo({ visit, client, onUpdate, onUpdateVisit, onNewVisi
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Заметки по приёму</CardTitle>
             {voiceSupported && (
-              <Button
-                variant={isRecording && activeField === 'notes' ? 'destructive' : 'outline'}
-                size="sm"
+              <VoiceMicButton
+                active={activeField === 'notes'}
+                label="Диктую заметки..."
                 onClick={() => toggleRecording('notes')}
-              >
-                {isRecording && activeField === 'notes' ? (
-                  <>
-                    <MicOff className="mr-2 h-4 w-4 animate-pulse" />
-                    Остановить
-                  </>
-                ) : (
-                  <>
-                    <Mic className="mr-2 h-4 w-4" />
-                    Голосовой ввод
-                  </>
-                )}
-              </Button>
+              />
             )}
           </CardHeader>
           <CardContent>
@@ -143,24 +133,12 @@ export function TabVisitInfo({ visit, client, onUpdate, onUpdateVisit, onNewVisi
                 <div className="flex items-center justify-between mb-2">
                   <FieldLabel>Договорились на следующий раз</FieldLabel>
                   {voiceSupported && (
-                    <Button
-                      variant={isRecording && activeField === 'plan' ? 'destructive' : 'ghost'}
+                    <VoiceMicButton
+                      active={activeField === 'plan'}
+                      label="Диктую план..."
                       size="sm"
                       onClick={() => toggleRecording('plan')}
-                      className="h-7 text-xs"
-                    >
-                      {isRecording && activeField === 'plan' ? (
-                        <>
-                          <MicOff className="mr-1 h-3 w-3 animate-pulse" />
-                          Стоп
-                        </>
-                      ) : (
-                        <>
-                          <Mic className="mr-1 h-3 w-3" />
-                          Диктовать
-                        </>
-                      )}
-                    </Button>
+                    />
                   )}
                 </div>
                 <Textarea
@@ -207,6 +185,7 @@ export function TabVisitInfo({ visit, client, onUpdate, onUpdateVisit, onNewVisi
 
         <Separator />
 
+        {/* Editable visit history */}
         <Card>
           <CardHeader>
             <CardTitle>Редактируемая история визитов</CardTitle>
@@ -225,7 +204,7 @@ export function TabVisitInfo({ visit, client, onUpdate, onUpdateVisit, onNewVisi
                     >
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-medium">
-                          Визит #{client.visits.length - index - 1}
+                          Приём #{client.visits.length - index}
                         </span>
                         <span className="text-sm text-muted-foreground">
                           {format(parseISO(v.date), 'd MMM yyyy', { locale: ru })}
@@ -264,7 +243,7 @@ export function TabVisitInfo({ visit, client, onUpdate, onUpdateVisit, onNewVisi
           </CardContent>
         </Card>
 
-        {/* Quick summary of current visit */}
+        {/* Current visit quick summary */}
         <Card>
           <CardHeader>
             <CardTitle>Сводка текущего визита</CardTitle>

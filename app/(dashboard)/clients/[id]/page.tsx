@@ -103,6 +103,20 @@ export default function ClientCardPage() {
     setHasChanges(true)
   }, [])
 
+  // Delete a specific visit
+  const handleDeleteVisit = useCallback((visitId: string) => {
+    if (!client) return
+    const updatedVisits = client.visits.filter((v) => v.id !== visitId)
+    const updatedClient: Client = { ...client, visits: updatedVisits }
+    saveClient(updatedClient)
+    setClient(updatedClient)
+    // If current visit was deleted, switch to last remaining
+    if (currentVisit?.id === visitId) {
+      setCurrentVisit(updatedVisits.length > 0 ? updatedVisits[updatedVisits.length - 1] : null)
+    }
+    toast.success('Приём удалён')
+  }, [client, currentVisit])
+
   // Save all changes
   const handleSave = useCallback(() => {
     if (!client) return
@@ -263,7 +277,7 @@ export default function ClientCardPage() {
 
           <TabsContent value="spine" className="h-full m-0">
             {currentVisit && (
-              <TabSpine visit={currentVisit} visits={visitsWithCurrent} onUpdate={updateVisit} />
+              <TabSpine visit={currentVisit} visits={visitsWithCurrent} onUpdate={updateVisit} onDeleteVisit={handleDeleteVisit} />
             )}
           </TabsContent>
 
@@ -285,7 +299,7 @@ export default function ClientCardPage() {
 
           <TabsContent value="body" className="h-full m-0">
             {currentVisit && (
-              <TabBodyRegions visit={currentVisit} onUpdate={updateVisit} />
+              <TabBodyRegions visit={currentVisit} allVisits={visitsWithCurrent} onUpdate={updateVisit} />
             )}
           </TabsContent>
 

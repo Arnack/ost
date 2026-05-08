@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Camera, Upload, X, FileText, Calendar, Mic, MicOff } from 'lucide-react'
+import { Camera, Upload, X, FileText, Calendar } from 'lucide-react'
 import { format, parseISO, differenceInYears } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { VoiceMicButton } from '@/components/ui/voice-mic-button'
 import type { Client, Photo, ClientFile } from '@/lib/types'
 import { isVoiceSupported, startVoiceInput, stopVoiceInput } from '@/lib/voice'
 
@@ -24,17 +25,15 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
   const [activeVoiceField, setActiveVoiceField] = useState<'name' | 'phone' | 'email' | null>(null)
+  const [interimText, setInterimText] = useState('')
 
-  // Calculate age from birth date
   const age = client.birthDate
     ? differenceInYears(new Date(), parseISO(client.birthDate))
     : null
 
-  // Handle photo upload
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files) return
-
     Array.from(files).forEach((file) => {
       const reader = new FileReader()
       reader.onload = (event) => {
@@ -49,11 +48,9 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
     })
   }
 
-  // Handle file upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files) return
-
     Array.from(files).forEach((file) => {
       const reader = new FileReader()
       reader.onload = (event) => {
@@ -70,13 +67,11 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
     })
   }
 
-  // Delete photo
   const handleDeletePhoto = (photoId: string) => {
     onUpdate({ photos: client.photos.filter((p) => p.id !== photoId) })
     setSelectedPhoto(null)
   }
 
-  // Delete file
   const handleDeleteFile = (fileId: string) => {
     onUpdate({ files: client.files.filter((f) => f.id !== fileId) })
   }
@@ -85,6 +80,7 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
     if (activeVoiceField === field) {
       stopVoiceInput()
       setActiveVoiceField(null)
+      setInterimText('')
       return
     }
 
@@ -95,17 +91,26 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
 
     const currentValue = String(client[field] || '')
     startVoiceInput({
-      interimResults: false,
+      interimResults: true,
+      continuous: true,
       onResult: (text) => {
         const nextValue = currentValue ? `${currentValue} ${text}` : text
         onUpdate({ [field]: nextValue })
+        setInterimText('')
       },
       onError: (error) => {
         toast.error(error)
         setActiveVoiceField(null)
+        setInterimText('')
       },
-      onStart: () => setActiveVoiceField(field),
-      onEnd: () => setActiveVoiceField(null),
+      onStart: () => {
+        setActiveVoiceField(field)
+        setInterimText('')
+      },
+      onEnd: () => {
+        setActiveVoiceField(null)
+        setInterimText('')
+      },
     })
   }
 
@@ -121,24 +126,17 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
             <FieldGroup className="grid grid-cols-2 gap-4">
               <Field className="col-span-2 md:col-span-1">
                 <FieldLabel>ФИО</FieldLabel>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                   <Input
                     value={client.name}
                     onChange={(e) => onUpdate({ name: e.target.value })}
                     className="h-11"
                   />
-                  <Button
-                    type="button"
-                    variant={activeVoiceField === 'name' ? 'default' : 'outline'}
-                    size="icon"
+                  <VoiceMicButton
+                    active={activeVoiceField === 'name'}
+                    interimText={activeVoiceField === 'name' ? interimText : undefined}
                     onClick={() => toggleVoiceInput('name')}
-                  >
-                    {activeVoiceField === 'name' ? (
-                      <MicOff className="h-4 w-4" />
-                    ) : (
-                      <Mic className="h-4 w-4" />
-                    )}
-                  </Button>
+                  />
                 </div>
               </Field>
               <Field>
@@ -161,7 +159,7 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
               </Field>
               <Field>
                 <FieldLabel>Телефон</FieldLabel>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                   <Input
                     type="tel"
                     value={client.phone || ''}
@@ -169,23 +167,16 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
                     placeholder="+7 (___) ___-__-__"
                     className="h-11"
                   />
-                  <Button
-                    type="button"
-                    variant={activeVoiceField === 'phone' ? 'default' : 'outline'}
-                    size="icon"
+                  <VoiceMicButton
+                    active={activeVoiceField === 'phone'}
+                    interimText={activeVoiceField === 'phone' ? interimText : undefined}
                     onClick={() => toggleVoiceInput('phone')}
-                  >
-                    {activeVoiceField === 'phone' ? (
-                      <MicOff className="h-4 w-4" />
-                    ) : (
-                      <Mic className="h-4 w-4" />
-                    )}
-                  </Button>
+                  />
                 </div>
               </Field>
               <Field>
                 <FieldLabel>Email</FieldLabel>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                   <Input
                     type="email"
                     value={client.email || ''}
@@ -193,18 +184,11 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
                     placeholder="email@example.com"
                     className="h-11"
                   />
-                  <Button
-                    type="button"
-                    variant={activeVoiceField === 'email' ? 'default' : 'outline'}
-                    size="icon"
+                  <VoiceMicButton
+                    active={activeVoiceField === 'email'}
+                    interimText={activeVoiceField === 'email' ? interimText : undefined}
                     onClick={() => toggleVoiceInput('email')}
-                  >
-                    {activeVoiceField === 'email' ? (
-                      <MicOff className="h-4 w-4" />
-                    ) : (
-                      <Mic className="h-4 w-4" />
-                    )}
-                  </Button>
+                  />
                 </div>
               </Field>
             </FieldGroup>
@@ -215,10 +199,7 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Фотографии</CardTitle>
-            <Button
-              variant="outline"
-              onClick={() => photoInputRef.current?.click()}
-            >
+            <Button variant="outline" onClick={() => photoInputRef.current?.click()}>
               <Camera className="mr-2 h-4 w-4" />
               Добавить фото
             </Button>
@@ -279,10 +260,7 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Файлы</CardTitle>
-            <Button
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-            >
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
               <Upload className="mr-2 h-4 w-4" />
               Загрузить файл
             </Button>
@@ -319,20 +297,12 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        asChild
-                      >
+                      <Button variant="ghost" size="icon" asChild>
                         <a href={file.url} download={file.name}>
                           <Upload className="h-4 w-4 rotate-180" />
                         </a>
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteFile(file.id)}
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteFile(file.id)}>
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
@@ -364,13 +334,9 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
                       <Calendar className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="font-medium">
-                        Визит #{client.visits.length - index}
-                      </p>
+                      <p className="font-medium">Визит #{client.visits.length - index}</p>
                       <p className="text-sm text-muted-foreground">
-                        {format(parseISO(visit.date), 'd MMMM yyyy, HH:mm', {
-                          locale: ru,
-                        })}
+                        {format(parseISO(visit.date), 'd MMMM yyyy, HH:mm', { locale: ru })}
                       </p>
                     </div>
                   </div>

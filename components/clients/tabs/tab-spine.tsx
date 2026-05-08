@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Pencil, RotateCcw, Circle, Minus } from 'lucide-react'
+import { Pencil, RotateCcw, Trash2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,6 +14,7 @@ interface TabSpineProps {
   visit: Visit
   visits?: Visit[]
   onUpdate: (updates: Partial<Visit>) => void
+  onDeleteVisit?: (visitId: string) => void
 }
 
 const spineSegments = [
@@ -70,9 +71,9 @@ const statusLabels = {
   blocked: 'Блок',
 }
 
-type DrawingTool = 'pencil' | 'circle' | 'line' | 'eraser' | null
+type DrawingTool = 'pencil' | 'eraser' | null
 
-export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
+export function TabSpine({ visit, visits = [visit], onUpdate, onDeleteVisit }: TabSpineProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [tool, setTool] = useState<DrawingTool>(null)
@@ -169,18 +170,6 @@ export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
           }
         })
         ctx.stroke()
-      } else if (annotation.type === 'circle') {
-        ctx.beginPath()
-        const radius = Math.sqrt(
-          Math.pow(annotation.width, 2) + Math.pow(annotation.height, 2)
-        ) / 2
-        ctx.arc(annotation.x, annotation.y, radius, 0, 2 * Math.PI)
-        ctx.stroke()
-      } else if (annotation.type === 'line') {
-        ctx.beginPath()
-        ctx.moveTo(annotation.x, annotation.y)
-        ctx.lineTo(annotation.x + annotation.width, annotation.y + annotation.height)
-        ctx.stroke()
       }
     })
   }, [visit.spineData.annotations])
@@ -197,7 +186,7 @@ export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
   }
 
   const handleCanvasStart = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!tool || tool === 'eraser') return
+    if (!tool) return
 
     const point = getCanvasPoint(e)
     if (!point) return
@@ -244,8 +233,8 @@ export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
       width: currentPath[currentPath.length - 1].x - currentPath[0].x,
       height: currentPath[currentPath.length - 1].y - currentPath[0].y,
       color: drawColor,
-      type: tool === 'pencil' ? 'freehand' : tool === 'circle' ? 'circle' : 'line',
-      points: tool === 'pencil' ? currentPath : undefined,
+      type: 'freehand',
+      points: currentPath,
     }
 
     onUpdate({
@@ -306,20 +295,6 @@ export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
                   size="sm"
                 >
                   <Pencil className="h-4 w-4" />
-                </Toggle>
-                <Toggle
-                  pressed={tool === 'circle'}
-                  onPressedChange={(pressed) => setTool(pressed ? 'circle' : null)}
-                  size="sm"
-                >
-                  <Circle className="h-4 w-4" />
-                </Toggle>
-                <Toggle
-                  pressed={tool === 'line'}
-                  onPressedChange={(pressed) => setTool(pressed ? 'line' : null)}
-                  size="sm"
-                >
-                  <Minus className="h-4 w-4" />
                 </Toggle>
                 <Button variant="ghost" size="sm" onClick={clearAnnotations}>
                   <RotateCcw className="h-4 w-4" />
@@ -482,43 +457,81 @@ export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
 
           <Card>
             <CardHeader>
-              <CardTitle>Timeline</CardTitle>
+              <CardTitle>История приёмов</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {sortedVisits.map((item) => {
-                  const date = new Intl.DateTimeFormat('ru-RU', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
-                  }).format(new Date(item.date))
-                  const count = item.spineData.segments.filter((s) => s.status !== 'normal').length
+                {sortedVisits.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Нет приёмов
+                  </p>
+                ) : (
+                  sortedVisits.map((item, idx) => {
+                    const date = new Intl.DateTimeFormat('ru-RU', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                    }).format(new Date(item.date))
+                    const count = item.spineData.segments.filter((s) => s.status !== 'normal').length
+                    const isCurrentVisit = item.id === visit.id
 
-                  return (
-                    <div
-                      key={item.id}
-                      className={cn(
-                        'rounded-lg border p-3',
-                        item.id === visit.id && 'border-primary bg-primary/5'
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="font-medium">{date}</span>
-                        <span className="text-sm text-muted-foreground">{count} сегм.</span>
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {item.spineData.segments
-                          .filter((s) => s.status !== 'normal')
-                          .slice(0, 8)
-                          .map((segment) => (
-                            <span key={segment.id} className="rounded bg-warning/20 px-2 py-0.5 text-xs">
-                              {segment.id}
+                    return (
+                      <div
+                        key={item.id}
+                        className={cn(
+                          'rounded-lg border p-3 transition-colors',
+                          isCurrentVisit && 'border-primary bg-primary/5'
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            {/* Visit number badge */}
+                            <span className={cn(
+                              'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                              isCurrentVisit
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted text-muted-foreground'
+                            )}>
+                              {sortedVisits.length - idx}
                             </span>
-                          ))}
+                            <div>
+                              <span className="font-medium text-sm">
+                                Приём {sortedVisits.length - idx}
+                              </span>
+                              <span className="ml-2 text-xs text-muted-foreground">{date}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">{count} сегм.</span>
+                            {onDeleteVisit && !isCurrentVisit && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                onClick={() => onDeleteVisit(item.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {item.spineData.segments
+                            .filter((s) => s.status !== 'normal')
+                            .slice(0, 8)
+                            .map((segment) => (
+                              <span key={segment.id} className="rounded bg-warning/20 px-2 py-0.5 text-xs">
+                                {segment.id}
+                              </span>
+                            ))}
+                          {item.spineData.segments.filter((s) => s.status !== 'normal').length === 0 && (
+                            <span className="text-xs text-muted-foreground italic">Норма</span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })
+                )}
               </div>
             </CardContent>
           </Card>

@@ -1,15 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { Mic, MicOff } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { Slider } from '@/components/ui/slider'
 import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { VoiceMicButton } from '@/components/ui/voice-mic-button'
 import type { Client, Anamnesis } from '@/lib/types'
 import { isVoiceSupported, startVoiceInput, stopVoiceInput } from '@/lib/voice'
 
@@ -19,24 +18,25 @@ interface TabAnamnesisProps {
 }
 
 const anamnesisFields = [
-  { key: 'symptoms', label: 'Симптомы' },
-  { key: 'firstSymptoms', label: 'Первые симптомы (когда, как началось)' },
-  { key: 'complaints', label: 'Жалобы' },
-  { key: 'injuries', label: 'Травмы' },
-  { key: 'scars', label: 'Рубцы / шрамы' },
-  { key: 'medications', label: 'Принимаемые препараты' },
-  { key: 'birthTraumas', label: 'Родовые травмы' },
-  { key: 'sleepPositions', label: 'Позы сна' },
-  { key: 'specialists', label: 'Обращения к специалистам' },
-  { key: 'treatment', label: 'Проведённое лечение' },
+  { key: 'symptoms',        label: 'Симптомы' },
+  { key: 'firstSymptoms',   label: 'Первые симптомы (когда, как началось)' },
+  { key: 'complaints',      label: 'Жалобы' },
+  { key: 'injuries',        label: 'Травмы' },
+  { key: 'scars',           label: 'Рубцы / шрамы' },
+  { key: 'medications',     label: 'Принимаемые препараты' },
+  { key: 'birthTraumas',    label: 'Родовые травмы' },
+  { key: 'sleepPositions',  label: 'Позы сна' },
+  { key: 'specialists',     label: 'Обращения к специалистам' },
+  { key: 'treatment',       label: 'Проведённое лечение' },
   { key: 'treatmentResult', label: 'Результат лечения' },
-  { key: 'diagnosis', label: 'Диагноз' },
-  { key: 'additionalInfo', label: 'Дополнительная информация' },
-  { key: 'desiredResult', label: 'Желаемый результат' },
+  { key: 'diagnosis',       label: 'Диагноз' },
+  { key: 'additionalInfo',  label: 'Дополнительная информация' },
+  { key: 'desiredResult',   label: 'Желаемый результат' },
 ] as const
 
 export function TabAnamnesis({ client, onUpdate }: TabAnamnesisProps) {
   const [activeVoiceField, setActiveVoiceField] = useState<keyof Anamnesis | null>(null)
+  const [interimText, setInterimText] = useState('')
 
   const updateAnamnesis = (key: keyof Anamnesis, value: string | number) => {
     onUpdate({
@@ -51,6 +51,7 @@ export function TabAnamnesis({ client, onUpdate }: TabAnamnesisProps) {
     if (activeVoiceField === key) {
       stopVoiceInput()
       setActiveVoiceField(null)
+      setInterimText('')
       return
     }
 
@@ -61,17 +62,26 @@ export function TabAnamnesis({ client, onUpdate }: TabAnamnesisProps) {
 
     const currentValue = String(client.anamnesis[key] || '')
     startVoiceInput({
-      interimResults: false,
+      interimResults: true,
+      continuous: true,
       onResult: (text) => {
         const nextValue = currentValue ? `${currentValue} ${text}` : text
         updateAnamnesis(key, nextValue)
+        setInterimText('')
       },
       onError: (error) => {
         toast.error(error)
         setActiveVoiceField(null)
+        setInterimText('')
       },
-      onStart: () => setActiveVoiceField(key),
-      onEnd: () => setActiveVoiceField(null),
+      onStart: () => {
+        setActiveVoiceField(key)
+        setInterimText('')
+      },
+      onEnd: () => {
+        setActiveVoiceField(null)
+        setInterimText('')
+      },
     })
   }
 
@@ -87,20 +97,14 @@ export function TabAnamnesis({ client, onUpdate }: TabAnamnesisProps) {
             <FieldGroup className="space-y-4">
               {anamnesisFields.map((field) => (
                 <Field key={field.key}>
-                  <div className="flex items-center justify-between gap-2">
-                    <FieldLabel>{field.label}</FieldLabel>
-                    <Button
-                      type="button"
-                      variant={activeVoiceField === field.key ? 'default' : 'outline'}
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <FieldLabel className="mb-0">{field.label}</FieldLabel>
+                    <VoiceMicButton
+                      active={activeVoiceField === field.key}
+                      interimText={activeVoiceField === field.key ? interimText : undefined}
                       size="sm"
                       onClick={() => toggleVoiceInput(field.key)}
-                    >
-                      {activeVoiceField === field.key ? (
-                        <MicOff className="h-4 w-4" />
-                      ) : (
-                        <Mic className="h-4 w-4" />
-                      )}
-                    </Button>
+                    />
                   </div>
                   <Textarea
                     value={client.anamnesis[field.key] as string}
