@@ -72,13 +72,6 @@ const statusLabels = {
 
 type DrawingTool = 'pencil' | 'circle' | 'line' | 'eraser' | null
 
-const referenceViews = [
-  'Скелет спереди',
-  'Скелет сзади',
-  'Скелет сбоку',
-  'Скелет 3/4',
-]
-
 export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -535,20 +528,13 @@ export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
               <CardTitle>Справочные проекции</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-3">
-                {referenceViews.map((title) => (
-                  <div key={title} className="rounded-lg border bg-muted/20 p-3">
-                    <div className="mb-2 aspect-[3/4] rounded bg-background p-2">
-                      <img
-                        src="/spine_side_view.svg"
-                        alt={title}
-                        className="h-full w-full object-contain opacity-80"
-                        draggable={false}
-                      />
-                    </div>
-                    <p className="text-center text-xs text-muted-foreground">{title}</p>
-                  </div>
-                ))}
+              <div className="rounded-lg border bg-muted/20 p-2">
+                <img
+                  src="/skeleton-anatomy.png"
+                  alt="Справочные изображения скелета: спереди, сзади, сбоку, 3/4"
+                  className="w-full rounded object-contain"
+                  draggable={false}
+                />
               </div>
             </CardContent>
           </Card>
