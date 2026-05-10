@@ -49,6 +49,12 @@ export interface SpineData {
   annotations: SpineAnnotation[]
 }
 
+export interface SpineSnapshot {
+  id: string
+  date: string
+  spineData: SpineData
+}
+
 export interface SpineAnnotation {
   id: string
   x: number
@@ -143,6 +149,7 @@ export interface Visit {
   id: string
   date: string
   spineData: SpineData
+  spineHistory?: SpineSnapshot[]
   neuroTests: NeuroTest[]
   gravityData: GravityData
   bodyRegions: BodyRegionData
@@ -302,6 +309,15 @@ export function normalizeVisit(visit: Visit): Visit {
       segments: visit.spineData?.segments || [],
       annotations: visit.spineData?.annotations || [],
     },
+    spineHistory: (visit.spineHistory || []).map((snapshot) => ({
+      ...snapshot,
+      spineData: {
+        ...emptySpineData,
+        ...snapshot.spineData,
+        segments: snapshot.spineData?.segments || [],
+        annotations: snapshot.spineData?.annotations || [],
+      },
+    })),
     neuroTests: visit.neuroTests || [],
     gravityData: {
       ...emptyGravityData,

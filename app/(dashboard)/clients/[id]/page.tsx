@@ -125,15 +125,33 @@ export default function ClientCardPage() {
   const handleSave = useCallback(() => {
     if (!client) return
 
-    // Update the visit in client's visits array
     let updatedVisits = [...client.visits]
     if (currentVisit) {
+      const savedAt = new Date().toISOString()
+      const visitToSave: Visit = {
+        ...currentVisit,
+        spineHistory: [
+          ...(currentVisit.spineHistory || []),
+          {
+            id: crypto.randomUUID(),
+            date: savedAt,
+            spineData: {
+              segments: currentVisit.spineData.segments.map((segment) => ({ ...segment })),
+              annotations: currentVisit.spineData.annotations.map((annotation) => ({
+                ...annotation,
+                points: annotation.points?.map((point) => ({ ...point })),
+              })),
+            },
+          },
+        ],
+      }
       const visitIndex = updatedVisits.findIndex((v) => v.id === currentVisit.id)
       if (visitIndex >= 0) {
-        updatedVisits[visitIndex] = currentVisit
+        updatedVisits[visitIndex] = visitToSave
       } else {
-        updatedVisits.push(currentVisit)
+        updatedVisits.push(visitToSave)
       }
+      setCurrentVisit(visitToSave)
     }
 
     const updatedClient: Client = {

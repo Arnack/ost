@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Pencil, RotateCcw } from 'lucide-react'
+import { Pencil, RotateCcw, Trash2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -267,10 +267,12 @@ export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
   }
 
   const affectedSegments = visit.spineData.segments.filter((s) => s.status !== 'normal')
-  const sortedVisits = [...visits].sort(
+  const savedSnapshots = [...(visit.spineHistory || [])].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   )
-  const previousVisits = sortedVisits.filter((item) => item.id !== visit.id)
+  const sortedPreviousVisits = [...visits]
+    .filter((item) => item.id !== visit.id)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   const currentVisitDate = new Intl.DateTimeFormat('ru-RU', {
     day: '2-digit',
     month: '2-digit',
@@ -452,24 +454,53 @@ export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                  {previousVisits.length === 0 ? (
+                  {savedSnapshots.length === 0 && sortedPreviousVisits.length === 0 ? (
                     <div className="rounded-lg border border-dashed bg-background/60 p-4 text-center text-sm text-muted-foreground sm:col-span-2 lg:col-span-5">
                       Нет предыдущих отметок
                     </div>
                   ) : (
-                    previousVisits.slice(0, 5).map((item, idx) => {
-                      const date = new Intl.DateTimeFormat('ru-RU', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                      }).format(new Date(item.date))
+                    [
+                      ...savedSnapshots.map((snapshot, index) => ({
+                        id: snapshot.id,
+                        date: snapshot.date,
+                        title: new Intl.DateTimeFormat('ru-RU', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        }).format(new Date(snapshot.date)),
+                        spineData: snapshot.spineData,
+                        type: 'snapshot' as const,
+                      })),
+                      ...sortedPreviousVisits.map((item, index) => ({
+                        id: item.id,
+                        date: item.date,
+                        title: `Приём ${sortedPreviousVisits.length - index}`,
+                        spineData: item.spineData,
+                        type: 'visit' as const,
+                      })),
+                    ].slice(0, 5).map((item) => {
                       const markedSegments = item.spineData.segments.filter((s) => s.status !== 'normal')
 
                       return (
                         <div key={item.id} className="min-h-24 rounded-lg border bg-background/80 p-3">
                           <div className="mb-2 flex items-center justify-between gap-2">
-                            <span className="text-sm font-medium">Приём {previousVisits.length - idx}</span>
-                            <span className="text-xs text-muted-foreground">{date}</span>
+                            <span className="text-sm font-medium">{item.title}</span>
+                            {item.type === 'snapshot' && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
+                                onClick={() =>
+                                  onUpdate({
+                                    spineHistory: (visit.spineHistory || []).filter((snapshot) => snapshot.id !== item.id),
+                                  })
+                                }
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
                           </div>
                           <div className="flex flex-wrap gap-1">
                             {markedSegments.length === 0 ? (
