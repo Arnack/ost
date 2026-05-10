@@ -81,9 +81,9 @@ export function AppSidebar() {
                     >
                       <Link href={item.href}>
                         <item.icon className="h-5 w-5" />
-                        <span className="text-base">{item.title}</span>
+                        <span className="text-base group-data-[collapsible=icon]:hidden">{item.title}</span>
                         {item.href === '/calendar' && todayCount > 0 && (
-                          <span className="ml-auto flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                          <span className="ml-auto flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground group-data-[collapsible=icon]:hidden">
                             {todayCount}
                           </span>
                         )}
@@ -109,7 +109,7 @@ export function AppSidebar() {
             >
               <Link href="/settings">
                 <Settings className="h-5 w-5" />
-                <span className="text-base">Настройки</span>
+                <span className="text-base group-data-[collapsible=icon]:hidden">Настройки</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

@@ -274,13 +274,13 @@ export default function ClientCardPage() {
         onValueChange={setActiveTab}
         className="flex flex-col flex-1 overflow-hidden"
       >
-        <div className="border-b bg-card px-4">
-          <TabsList className="h-12 w-full justify-start gap-1 bg-transparent p-0">
+        <div className="min-w-0 overflow-x-auto border-b bg-card px-4">
+          <TabsList className="h-12 w-max min-w-max justify-start gap-1 bg-transparent p-0">
             {tabs.map((tab) => (
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
-                className="h-10 px-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="h-10 shrink-0 px-3 sm:px-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
                 {tab.label}
               </TabsTrigger>
