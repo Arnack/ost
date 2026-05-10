@@ -1,11 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import type { Visit, BodyRegion } from '@/lib/types'
 import { format, parseISO } from 'date-fns'
@@ -19,45 +16,51 @@ interface TabBodyRegionsProps {
 
 // Body regions for front view — each region has L/R pair info
 const frontRegions = [
-  { id: 'head-front',       name: 'Голова',           x: 45, y: 5,  width: 10, height: 8, bodySide: 'center' as const },
-  { id: 'neck-front',       name: 'Шея',              x: 45, y: 13, width: 10, height: 5, bodySide: 'center' as const },
-  { id: 'chest-left',       name: 'Грудь Л',          x: 35, y: 18, width: 15, height: 15, bodySide: 'left' as const },
-  { id: 'chest-right',      name: 'Грудь П',          x: 50, y: 18, width: 15, height: 15, bodySide: 'right' as const },
-  { id: 'abdomen-upper',    name: 'Живот верх',       x: 40, y: 33, width: 20, height: 10, bodySide: 'center' as const },
-  { id: 'abdomen-lower',    name: 'Живот низ',        x: 40, y: 43, width: 20, height: 10, bodySide: 'center' as const },
-  { id: 'pelvis-front',     name: 'Таз',              x: 38, y: 53, width: 24, height: 10, bodySide: 'center' as const },
-  { id: 'shoulder-left',    name: 'Плечо Л',          x: 25, y: 18, width: 10, height: 8, bodySide: 'left' as const },
-  { id: 'shoulder-right',   name: 'Плечо П',          x: 65, y: 18, width: 10, height: 8, bodySide: 'right' as const },
-  { id: 'arm-upper-left',   name: 'Предплечье Л',     x: 20, y: 26, width: 8,  height: 15, bodySide: 'left' as const },
-  { id: 'arm-upper-right',  name: 'Предплечье П',     x: 72, y: 26, width: 8,  height: 15, bodySide: 'right' as const },
-  { id: 'arm-lower-left',   name: 'Кисть Л',          x: 15, y: 41, width: 8,  height: 15, bodySide: 'left' as const },
-  { id: 'arm-lower-right',  name: 'Кисть П',          x: 77, y: 41, width: 8,  height: 15, bodySide: 'right' as const },
-  { id: 'thigh-left',       name: 'Бедро Л',          x: 35, y: 63, width: 12, height: 18, bodySide: 'left' as const },
-  { id: 'thigh-right',      name: 'Бедро П',          x: 53, y: 63, width: 12, height: 18, bodySide: 'right' as const },
-  { id: 'knee-left',        name: 'Колено Л',         x: 36, y: 81, width: 10, height: 5, bodySide: 'left' as const },
-  { id: 'knee-right',       name: 'Колено П',         x: 54, y: 81, width: 10, height: 5, bodySide: 'right' as const },
-  { id: 'shin-left',        name: 'Голень Л',         x: 36, y: 86, width: 10, height: 10, bodySide: 'left' as const },
-  { id: 'shin-right',       name: 'Голень П',         x: 54, y: 86, width: 10, height: 10, bodySide: 'right' as const },
+  { id: 'head-front-left',   name: 'Голова Л',         x: 42, y: 5,  width: 8,  height: 8,  bodySide: 'left' as const },
+  { id: 'head-front-right',  name: 'Голова П',         x: 50, y: 5,  width: 8,  height: 8,  bodySide: 'right' as const },
+  { id: 'neck-front-left',   name: 'Шея Л',            x: 43, y: 13, width: 7,  height: 5,  bodySide: 'left' as const },
+  { id: 'neck-front-right',  name: 'Шея П',            x: 50, y: 13, width: 7,  height: 5,  bodySide: 'right' as const },
+  { id: 'ribs-left',         name: 'Рёбра Л',          x: 35, y: 24, width: 15, height: 15, bodySide: 'left' as const },
+  { id: 'ribs-right',        name: 'Рёбра П',          x: 50, y: 24, width: 15, height: 15, bodySide: 'right' as const },
+  { id: 'chest-left',        name: 'Грудь Л',          x: 36, y: 18, width: 14, height: 8,  bodySide: 'left' as const },
+  { id: 'chest-right',       name: 'Грудь П',          x: 50, y: 18, width: 14, height: 8,  bodySide: 'right' as const },
+  { id: 'abdomen-upper',     name: 'Живот верх',       x: 40, y: 39, width: 20, height: 8,  bodySide: 'center' as const },
+  { id: 'abdomen-lower',     name: 'Живот низ',        x: 40, y: 47, width: 20, height: 8,  bodySide: 'center' as const },
+  { id: 'pelvis-front-left', name: 'Таз Л',            x: 38, y: 55, width: 12, height: 8,  bodySide: 'left' as const },
+  { id: 'pelvis-front-right', name: 'Таз П',           x: 50, y: 55, width: 12, height: 8,  bodySide: 'right' as const },
+  { id: 'shoulder-left',     name: 'Плечо Л',          x: 25, y: 18, width: 10, height: 8,  bodySide: 'left' as const },
+  { id: 'shoulder-right',    name: 'Плечо П',          x: 65, y: 18, width: 10, height: 8,  bodySide: 'right' as const },
+  { id: 'arm-upper-left',    name: 'Предплечье Л',     x: 20, y: 26, width: 8,  height: 15, bodySide: 'left' as const },
+  { id: 'arm-upper-right',   name: 'Предплечье П',     x: 72, y: 26, width: 8,  height: 15, bodySide: 'right' as const },
+  { id: 'arm-lower-left',    name: 'Кисть Л',          x: 16, y: 43, width: 7,  height: 10, bodySide: 'left' as const },
+  { id: 'arm-lower-right',   name: 'Кисть П',          x: 77, y: 43, width: 7,  height: 10, bodySide: 'right' as const },
+  { id: 'thigh-left',        name: 'Бедро Л',          x: 35, y: 63, width: 12, height: 17, bodySide: 'left' as const },
+  { id: 'thigh-right',       name: 'Бедро П',          x: 53, y: 63, width: 12, height: 17, bodySide: 'right' as const },
+  { id: 'knee-left',         name: 'Колено Л',         x: 35, y: 80, width: 12, height: 7,  bodySide: 'left' as const },
+  { id: 'knee-right',        name: 'Колено П',         x: 53, y: 80, width: 12, height: 7,  bodySide: 'right' as const },
+  { id: 'shin-left',         name: 'Голень Л',         x: 36, y: 87, width: 10, height: 9,  bodySide: 'left' as const },
+  { id: 'shin-right',        name: 'Голень П',         x: 54, y: 87, width: 10, height: 9,  bodySide: 'right' as const },
+  { id: 'foot-left',         name: 'Стопа Л',          x: 34, y: 96, width: 10, height: 4,  bodySide: 'left' as const },
+  { id: 'foot-right',        name: 'Стопа П',          x: 56, y: 96, width: 10, height: 4,  bodySide: 'right' as const },
 ]
 
 const backRegions = [
-  { id: 'head-back',         name: 'Затылок',         x: 45, y: 5,  width: 10, height: 8, bodySide: 'center' as const },
-  { id: 'neck-back',         name: 'Шея зад',         x: 45, y: 13, width: 10, height: 5, bodySide: 'center' as const },
-  { id: 'upper-back-left',   name: 'Верх спины Л',    x: 35, y: 18, width: 15, height: 12, bodySide: 'left' as const },
-  { id: 'upper-back-right',  name: 'Верх спины П',    x: 50, y: 18, width: 15, height: 12, bodySide: 'right' as const },
-  { id: 'mid-back-left',     name: 'Сред спины Л',    x: 35, y: 30, width: 15, height: 12, bodySide: 'left' as const },
-  { id: 'mid-back-right',    name: 'Сред спины П',    x: 50, y: 30, width: 15, height: 12, bodySide: 'right' as const },
-  { id: 'lower-back-left',   name: 'Поясница Л',      x: 35, y: 42, width: 15, height: 10, bodySide: 'left' as const },
-  { id: 'lower-back-right',  name: 'Поясница П',      x: 50, y: 42, width: 15, height: 10, bodySide: 'right' as const },
-  { id: 'sacrum',            name: 'Крестец',         x: 42, y: 52, width: 16, height: 8, bodySide: 'center' as const },
-  { id: 'glute-left',        name: 'Ягодица Л',       x: 35, y: 60, width: 15, height: 10, bodySide: 'left' as const },
-  { id: 'glute-right',       name: 'Ягодица П',       x: 50, y: 60, width: 15, height: 10, bodySide: 'right' as const },
-  { id: 'scapula-left',      name: 'Лопатка Л',       x: 28, y: 20, width: 8,  height: 12, bodySide: 'left' as const },
-  { id: 'scapula-right',     name: 'Лопатка П',       x: 64, y: 20, width: 8,  height: 12, bodySide: 'right' as const },
-  { id: 'hamstring-left',    name: 'Задн бедро Л',    x: 35, y: 70, width: 12, height: 15, bodySide: 'left' as const },
-  { id: 'hamstring-right',   name: 'Задн бедро П',    x: 53, y: 70, width: 12, height: 15, bodySide: 'right' as const },
-  { id: 'calf-left',         name: 'Икра Л',          x: 36, y: 85, width: 10, height: 12, bodySide: 'left' as const },
-  { id: 'calf-right',        name: 'Икра П',          x: 54, y: 85, width: 10, height: 12, bodySide: 'right' as const },
+  { id: 'occiput-back',      name: 'Затылок',         x: 45, y: 5,  width: 10, height: 8,  bodySide: 'center' as const },
+  { id: 'cervical-back',     name: 'Шейный отдел',    x: 44, y: 13, width: 12, height: 6,  bodySide: 'center' as const },
+  { id: 'thoracic-back',     name: 'Грудной отдел',   x: 38, y: 19, width: 24, height: 18, bodySide: 'center' as const },
+  { id: 'lumbar-back',       name: 'Поясница',        x: 39, y: 37, width: 22, height: 13, bodySide: 'center' as const },
+  { id: 'tailbone-back',     name: 'Копчик',          x: 45, y: 50, width: 10, height: 6,  bodySide: 'center' as const },
+  { id: 'pelvis-back',       name: 'Таз',             x: 38, y: 56, width: 24, height: 9,  bodySide: 'center' as const },
+  { id: 'scapula-left',      name: 'Лопатка Л',       x: 29, y: 21, width: 8,  height: 12, bodySide: 'left' as const },
+  { id: 'scapula-right',     name: 'Лопатка П',       x: 63, y: 21, width: 8,  height: 12, bodySide: 'right' as const },
+  { id: 'hamstring-left',    name: 'Бедро Л',         x: 35, y: 65, width: 12, height: 17, bodySide: 'left' as const },
+  { id: 'hamstring-right',   name: 'Бедро П',         x: 53, y: 65, width: 12, height: 17, bodySide: 'right' as const },
+  { id: 'knee-back-left',    name: 'Колено Л',        x: 35, y: 82, width: 12, height: 6,  bodySide: 'left' as const },
+  { id: 'knee-back-right',   name: 'Колено П',        x: 53, y: 82, width: 12, height: 6,  bodySide: 'right' as const },
+  { id: 'calf-left',         name: 'Икра Л',          x: 36, y: 88, width: 10, height: 8,  bodySide: 'left' as const },
+  { id: 'calf-right',        name: 'Икра П',          x: 54, y: 88, width: 10, height: 8,  bodySide: 'right' as const },
+  { id: 'heel-left',         name: 'Пятка Л',         x: 35, y: 96, width: 9,  height: 4,  bodySide: 'left' as const },
+  { id: 'heel-right',        name: 'Пятка П',         x: 56, y: 96, width: 9,  height: 4,  bodySide: 'right' as const },
 ]
 
 /** Derive pair key from region id: strips -left/-right suffix */
@@ -69,9 +72,9 @@ function getPairKey(id: string): string | null {
   return null
 }
 
-export function TabBodyRegions({ visit, allVisits = [], onUpdate }: TabBodyRegionsProps) {
-  const [view, setView] = useState<'front' | 'back'>('front')
+type BodyDiagramRegion = (typeof frontRegions)[number] | (typeof backRegions)[number]
 
+export function TabBodyRegions({ visit, allVisits = [], onUpdate }: TabBodyRegionsProps) {
   // Get region status
   const getRegionStatus = (regionId: string): BodyRegion['status'] => {
     const region = visit.bodyRegions.regions.find((r) => r.id === regionId)
@@ -129,8 +132,9 @@ export function TabBodyRegions({ visit, allVisits = [], onUpdate }: TabBodyRegio
   }
 
   // Body diagram
-  const BodyDiagram = ({ regions, side }: { regions: typeof frontRegions; side: 'front' | 'back' }) => (
+  const BodyDiagram = ({ regions, side, title }: { regions: BodyDiagramRegion[]; side: 'front' | 'back'; title: string }) => (
     <div className="relative bg-muted/30 rounded-lg p-4">
+      <h3 className="mb-3 text-center text-sm font-medium">{title}</h3>
       <svg viewBox="0 0 100 100" className="w-full max-w-xs mx-auto" style={{ aspectRatio: '1/1.2' }}>
         {/* Body outline */}
         <ellipse cx="50" cy="10" rx="8" ry="8" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-muted-foreground" />
@@ -203,20 +207,10 @@ export function TabBodyRegions({ visit, allVisits = [], onUpdate }: TabBodyRegio
             </Button>
           </CardHeader>
           <CardContent>
-            <Tabs value={view} onValueChange={(v) => setView(v as 'front' | 'back')}>
-              <TabsList className="mb-4">
-                <TabsTrigger value="front">Спереди</TabsTrigger>
-                <TabsTrigger value="back">Сзади</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="front" className="mt-0">
-                <BodyDiagram regions={frontRegions} side="front" />
-              </TabsContent>
-
-              <TabsContent value="back" className="mt-0">
-                <BodyDiagram regions={backRegions} side="back" />
-              </TabsContent>
-            </Tabs>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <BodyDiagram regions={frontRegions} side="front" title="Спереди" />
+              <BodyDiagram regions={backRegions} side="back" title="Сзади" />
+            </div>
 
             {/* Legend */}
             <div className="flex flex-wrap justify-center gap-6 mt-4 p-3 bg-muted/30 rounded-lg">
