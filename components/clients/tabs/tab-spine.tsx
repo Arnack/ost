@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Pencil, RotateCcw, Trash2 } from 'lucide-react'
+import { Pencil, RotateCcw } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -73,7 +73,7 @@ const statusLabels = {
 
 type DrawingTool = 'pencil' | 'eraser' | null
 
-export function TabSpine({ visit, visits = [visit], onUpdate, onDeleteVisit }: TabSpineProps) {
+export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [tool, setTool] = useState<DrawingTool>(null)
@@ -270,6 +270,7 @@ export function TabSpine({ visit, visits = [visit], onUpdate, onDeleteVisit }: T
   const sortedVisits = [...visits].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   )
+  const previousVisits = sortedVisits.filter((item) => item.id !== visit.id)
   const currentVisitDate = new Intl.DateTimeFormat('ru-RU', {
     day: '2-digit',
     month: '2-digit',
@@ -279,7 +280,7 @@ export function TabSpine({ visit, visits = [visit], onUpdate, onDeleteVisit }: T
   return (
     <ScrollArea className="h-full">
       <div className="p-6">
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
           <Card className="overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -352,8 +353,30 @@ export function TabSpine({ visit, visits = [visit], onUpdate, onDeleteVisit }: T
                                 cx={segment.x}
                                 cy={segment.y}
                                 r="4"
-                                className={cn('fill-transparent', isAffected && 'fill-destructive/20')}
+                                className={cn('fill-transparent transition-colors', isAffected && 'fill-destructive/20')}
                               />
+                              <rect
+                                x="61"
+                                y={segment.y - 2.5}
+                                width="10"
+                                height="5"
+                                rx="1.5"
+                                className={cn(
+                                  'fill-background/80 stroke-border stroke-[0.25] transition-colors',
+                                  isAffected && 'fill-destructive stroke-destructive'
+                                )}
+                              />
+                              <text
+                                x="66"
+                                y={segment.y + 1.1}
+                                textAnchor="middle"
+                                className={cn(
+                                  'select-none text-[3px] font-semibold fill-foreground transition-colors',
+                                  isAffected && 'fill-destructive-foreground'
+                                )}
+                              >
+                                {segment.id}
+                              </text>
                             </g>
                           )
                         })}
@@ -385,7 +408,26 @@ export function TabSpine({ visit, visits = [visit], onUpdate, onDeleteVisit }: T
                                   isAffected ? 'fill-destructive/85' : 'fill-transparent'
                                 )}
                               />
-                              <text x="62" y={segment.y + 1} className="text-[3px] fill-muted-foreground">
+                              <rect
+                                x="60"
+                                y={segment.y - 2.4}
+                                width="9"
+                                height="4.8"
+                                rx="1.4"
+                                className={cn(
+                                  'fill-background/80 stroke-border stroke-[0.25] transition-colors',
+                                  isAffected && 'fill-destructive stroke-destructive'
+                                )}
+                              />
+                              <text
+                                x="64.5"
+                                y={segment.y + 1}
+                                textAnchor="middle"
+                                className={cn(
+                                  'select-none text-[3px] font-semibold fill-muted-foreground transition-colors',
+                                  isAffected && 'fill-destructive-foreground'
+                                )}
+                              >
                                 {segment.id}
                               </text>
                             </g>
@@ -407,6 +449,43 @@ export function TabSpine({ visit, visits = [visit], onUpdate, onDeleteVisit }: T
                     onPointerCancel={handleCanvasEnd}
                     onPointerLeave={handleCanvasEnd}
                   />
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                  {previousVisits.length === 0 ? (
+                    <div className="rounded-lg border border-dashed bg-background/60 p-4 text-center text-sm text-muted-foreground sm:col-span-2 lg:col-span-5">
+                      Нет предыдущих отметок
+                    </div>
+                  ) : (
+                    previousVisits.slice(0, 5).map((item, idx) => {
+                      const date = new Intl.DateTimeFormat('ru-RU', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                      }).format(new Date(item.date))
+                      const markedSegments = item.spineData.segments.filter((s) => s.status !== 'normal')
+
+                      return (
+                        <div key={item.id} className="min-h-24 rounded-lg border bg-background/80 p-3">
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <span className="text-sm font-medium">Приём {previousVisits.length - idx}</span>
+                            <span className="text-xs text-muted-foreground">{date}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {markedSegments.length === 0 ? (
+                              <span className="text-xs italic text-muted-foreground">Норма</span>
+                            ) : (
+                              markedSegments.slice(0, 10).map((segment) => (
+                                <span key={segment.id} className="rounded bg-warning/20 px-2 py-0.5 text-xs">
+                                  {segment.id}
+                                </span>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -455,102 +534,6 @@ export function TabSpine({ visit, visits = [visit], onUpdate, onDeleteVisit }: T
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>История приёмов</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {sortedVisits.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Нет приёмов
-                  </p>
-                ) : (
-                  sortedVisits.map((item, idx) => {
-                    const date = new Intl.DateTimeFormat('ru-RU', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                    }).format(new Date(item.date))
-                    const count = item.spineData.segments.filter((s) => s.status !== 'normal').length
-                    const isCurrentVisit = item.id === visit.id
-
-                    return (
-                      <div
-                        key={item.id}
-                        className={cn(
-                          'rounded-lg border p-3 transition-colors',
-                          isCurrentVisit && 'border-primary bg-primary/5'
-                        )}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            {/* Visit number badge */}
-                            <span className={cn(
-                              'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold',
-                              isCurrentVisit
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-muted text-muted-foreground'
-                            )}>
-                              {sortedVisits.length - idx}
-                            </span>
-                            <div>
-                              <span className="font-medium text-sm">
-                                Приём {sortedVisits.length - idx}
-                              </span>
-                              <span className="ml-2 text-xs text-muted-foreground">{date}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">{count} сегм.</span>
-                            {onDeleteVisit && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                onClick={() => onDeleteVisit(item.id)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {item.spineData.segments
-                            .filter((s) => s.status !== 'normal')
-                            .slice(0, 8)
-                            .map((segment) => (
-                              <span key={segment.id} className="rounded bg-warning/20 px-2 py-0.5 text-xs">
-                                {segment.id}
-                              </span>
-                            ))}
-                          {item.spineData.segments.filter((s) => s.status !== 'normal').length === 0 && (
-                            <span className="text-xs text-muted-foreground italic">Норма</span>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Справочные проекции</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-lg border bg-muted/20 p-2">
-                <img
-                  src="/skeleton-anatomy.png"
-                  alt="Справочные изображения скелета: спереди, сзади, сбоку, 3/4"
-                  className="w-full rounded object-contain"
-                  draggable={false}
-                />
-              </div>
-            </CardContent>
-          </Card>
           </div>
         </div>
       </div>

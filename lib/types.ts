@@ -66,6 +66,7 @@ export interface NeuroTest {
   status?: 'normal' | 'deviation'
   postStatus?: 'normal' | 'deviation'
   results: {
+    date?: string
     current: string
     previous?: string
     initial?: string
