@@ -1,6 +1,7 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
@@ -123,17 +124,17 @@ function FeetDiagram({
   // Toe definitions: id, cx, cy, rx, ry, label, foot
   const toes = [
     // Left foot toes (anatomical left = viewer's right in the SVG)
-    { id: 'lt1', cx: 393, cy: 174, rx: 18, ry: 22, label: '1', foot: 'left' },
+    { id: 'lt1', cx: 386, cy: 174, rx: 18, ry: 22, label: '1', foot: 'left' },
     { id: 'lt2', cx: 414, cy: 162, rx: 14, ry: 19, label: '2', foot: 'left' },
-    { id: 'lt3', cx: 435, cy: 166, rx: 13, ry: 18, label: '3', foot: 'left' },
-    { id: 'lt4', cx: 454, cy: 172, rx: 12, ry: 16, label: '4', foot: 'left' },
-    { id: 'lt5', cx: 471, cy: 182, rx: 10, ry: 13, label: '5', foot: 'left' },
+    { id: 'lt3', cx: 441, cy: 166, rx: 13, ry: 18, label: '3', foot: 'left' },
+    { id: 'lt4', cx: 466, cy: 172, rx: 12, ry: 16, label: '4', foot: 'left' },
+    { id: 'lt5', cx: 490, cy: 184, rx: 10, ry: 13, label: '5', foot: 'left', isLittleToe: true },
     // Right foot toes
-    { id: 'rt1', cx: 287, cy: 174, rx: 18, ry: 22, label: '1', foot: 'right' },
+    { id: 'rt1', cx: 294, cy: 174, rx: 18, ry: 22, label: '1', foot: 'right' },
     { id: 'rt2', cx: 266, cy: 162, rx: 14, ry: 19, label: '2', foot: 'right' },
-    { id: 'rt3', cx: 245, cy: 166, rx: 13, ry: 18, label: '3', foot: 'right' },
-    { id: 'rt4', cx: 226, cy: 172, rx: 12, ry: 16, label: '4', foot: 'right' },
-    { id: 'rt5', cx: 209, cy: 182, rx: 10, ry: 13, label: '5', foot: 'right' },
+    { id: 'rt3', cx: 239, cy: 166, rx: 13, ry: 18, label: '3', foot: 'right' },
+    { id: 'rt4', cx: 214, cy: 172, rx: 12, ry: 16, label: '4', foot: 'right' },
+    { id: 'rt5', cx: 190, cy: 184, rx: 10, ry: 13, label: '5', foot: 'right', isLittleToe: true },
   ]
 
   return (
@@ -166,14 +167,36 @@ function FeetDiagram({
           const isMarked = markedToes.has(toe.id)
           return (
             <g key={toe.id} onClick={() => onToggle(toe.id)} style={{ cursor: 'pointer' }}>
+              {toe.isLittleToe && (
+                <>
+                  <line
+                    x1={toe.cx}
+                    y1={toe.cy + toe.ry + 4}
+                    x2={toe.foot === 'left' ? toe.cx + 28 : toe.cx - 28}
+                    y2={toe.cy + toe.ry + 26}
+                    stroke="hsl(var(--destructive))"
+                    strokeWidth="1"
+                  />
+                  <text
+                    x={toe.foot === 'left' ? toe.cx + 32 : toe.cx - 32}
+                    y={toe.cy + toe.ry + 30}
+                    textAnchor={toe.foot === 'left' ? 'start' : 'end'}
+                    className="fill-destructive"
+                    fontSize="11"
+                    fontWeight="600"
+                  >
+                    мизинец
+                  </text>
+                </>
+              )}
               <ellipse
                 cx={toe.cx}
                 cy={toe.cy}
                 rx={toe.rx}
                 ry={toe.ry}
                 fill={isMarked ? '#ef4444' : 'hsl(var(--muted))'}
-                stroke={isMarked ? '#dc2626' : 'hsl(var(--border))'}
-                strokeWidth="1"
+                stroke={isMarked || toe.isLittleToe ? '#dc2626' : 'hsl(var(--border))'}
+                strokeWidth={toe.isLittleToe ? '2' : '1'}
                 className="transition-colors"
               />
               <text
@@ -224,6 +247,19 @@ export function TabGravity({ visit, onUpdate }: TabGravityProps) {
     updateGravityData({ [`pattern4_${patternKey}`]: updated } as any)
   }
 
+  const setPattern4 = (patternKey: string, value: Grid4) => {
+    updateGravityData({ [`pattern4_${patternKey}`]: value } as any)
+  }
+
+  const setPatternDeviation = (patternKey: string) => {
+    setPattern4(patternKey, {
+      upperLeft: '-',
+      upperRight: '-',
+      lowerLeft: '-',
+      lowerRight: '-',
+    })
+  }
+
   // Multi-toe marker support
   const markedToes = new Set<string>(
     (visit.gravityData as any).markedToes || []
@@ -257,14 +293,12 @@ export function TabGravity({ visit, onUpdate }: TabGravityProps) {
     <ScrollArea className="h-full">
       <div className="p-6 space-y-6">
 
-        {/* Pattern grids */}
         <Card>
           <CardHeader>
             <CardTitle>Паттерны центров тяжести</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[auto_1fr]">
-              {/* Reference column */}
+            <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[auto_1fr]">
               <div className="rounded-lg border bg-muted/30 p-4 w-full lg:w-64">
                 <p className="mb-4 text-sm font-semibold text-center">Эталонная схема</p>
                 <div className="grid grid-cols-2 gap-4">
@@ -279,18 +313,39 @@ export function TabGravity({ visit, onUpdate }: TabGravityProps) {
                 </div>
               </div>
 
-              {/* Interactive grids */}
-              <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
                 {Object.keys(patternLabels).map((key) => (
-                  <div key={key} className="space-y-2">
-                    <p className="text-sm font-medium text-center">{patternLabels[key]}</p>
-                    <PatternGrid
-                      data={getPattern4(key)}
-                      onChange={(cellKey, value) => setPattern4Cell(key, cellKey, value)}
-                    />
-                    <p className="text-xs text-muted-foreground text-center">
-                      Каждая ячейка независима
-                    </p>
+                  <div key={key} className="grid grid-cols-[1fr_auto] items-center gap-3">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-center">{patternLabels[key]}</p>
+                      <PatternGrid
+                        data={getPattern4(key)}
+                        onChange={(cellKey, value) => setPattern4Cell(key, cellKey, value)}
+                      />
+                      <p className="text-xs text-muted-foreground text-center">
+                        Каждая ячейка независима
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-20 border-success/40 text-xs text-success hover:bg-success/10 hover:text-success"
+                        onClick={() => setPattern4(key, referencePatterns[key])}
+                      >
+                        Норма
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-20 border-destructive/40 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => setPatternDeviation(key)}
+                      >
+                        Отклон.
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -298,13 +353,22 @@ export function TabGravity({ visit, onUpdate }: TabGravityProps) {
           </CardContent>
         </Card>
 
-        {/* Feet diagram */}
         <Card>
           <CardHeader>
-            <CardTitle>Схема ступней — нумерация пальцев 1–5</CardTitle>
+            <CardTitle>Мезинец и линия тяжести</CardTitle>
           </CardHeader>
           <CardContent>
-            <FeetDiagram markedToes={markedToes} onToggle={toggleToe} />
+            <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
+              <div className="rounded-xl border bg-muted/20 p-4">
+                <FeetDiagram markedToes={markedToes} onToggle={toggleToe} />
+              </div>
+              <div className="rounded-xl border bg-muted/20 p-4">
+                <h3 className="text-sm font-medium">Предыдущие приёмы</h3>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                  Здесь будут отображаться сохранённые значения прошлых приёмов для сравнения динамики.
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
