@@ -235,6 +235,24 @@ export function TabGravity({ visit, onUpdate }: TabGravityProps) {
     updateGravityData({ markedToes: Array.from(next) } as any)
   }
 
+  const savedTotalWeight = visit.gravityData.totalWeight ?? 0
+  const savedLegWeight = visit.gravityData.weightLeft + visit.gravityData.weightRight
+  const totalWeight = savedTotalWeight > 0 ? savedTotalWeight : savedLegWeight
+  const weightLeft = totalWeight / 2
+  const weightRight = totalWeight / 2
+  const leftCost = visit.gravityData.leftCost || 0
+  const rightCost = visit.gravityData.rightCost || 0
+  const totalCost = leftCost + rightCost
+  const costDifference = totalCost - totalWeight
+  const costRatio = totalWeight > 0 ? totalCost / totalWeight : 0
+  const handleTotalWeightChange = (value: number) => {
+    updateGravityData({
+      totalWeight: value,
+      weightLeft: value / 2,
+      weightRight: value / 2,
+    })
+  }
+
   return (
     <ScrollArea className="h-full">
       <div className="p-6 space-y-6">
@@ -296,75 +314,102 @@ export function TabGravity({ visit, onUpdate }: TabGravityProps) {
             <CardTitle>Распределение веса на ногах</CardTitle>
           </CardHeader>
           <CardContent>
-            <FieldGroup className="flex flex-wrap justify-center gap-8">
-              <Field className="w-32">
-                <FieldLabel>Левая нога (кг)</FieldLabel>
-                <Input
-                  type="number"
-                  value={visit.gravityData.weightLeft}
-                  onChange={(e) =>
-                    updateGravityData({ weightLeft: Number(e.target.value) })
-                  }
-                  className="h-11 text-center text-lg"
-                  min={0}
-                  step={0.1}
-                />
-              </Field>
-              <Field className="w-32">
-                <FieldLabel>Правая нога (кг)</FieldLabel>
-                <Input
-                  type="number"
-                  value={visit.gravityData.weightRight}
-                  onChange={(e) =>
-                    updateGravityData({ weightRight: Number(e.target.value) })
-                  }
-                  className="h-11 text-center text-lg"
-                  min={0}
-                  step={0.1}
-                />
-              </Field>
-              <Field className="w-32">
-                <FieldLabel>Всего</FieldLabel>
-                <div className="h-11 flex items-center justify-center text-lg font-medium bg-muted rounded-md">
-                  {(visit.gravityData.weightLeft + visit.gravityData.weightRight).toFixed(1)} кг
+            <div className="grid gap-4 xl:grid-cols-[1fr_1fr_auto]">
+              <div className="rounded-xl border bg-muted/20 p-4">
+                <div className="mb-4">
+                  <h3 className="text-sm font-medium">Вес пациента</h3>
+                  <p className="text-xs text-muted-foreground">Введите фактический вес, распределение по ногам считается автоматически</p>
                 </div>
-              </Field>
-              <Field className="w-32">
-                <FieldLabel>Затраты Л</FieldLabel>
-                <Input
-                  type="number"
-                  value={visit.gravityData.leftCost || 0}
-                  onChange={(e) =>
-                    updateGravityData({ leftCost: Number(e.target.value) })
-                  }
-                  className="h-11 text-center text-lg"
-                  min={0}
-                />
-              </Field>
-              <Field className="w-32">
-                <FieldLabel>Затраты П</FieldLabel>
-                <Input
-                  type="number"
-                  value={visit.gravityData.rightCost || 0}
-                  onChange={(e) =>
-                    updateGravityData({ rightCost: Number(e.target.value) })
-                  }
-                  className="h-11 text-center text-lg"
-                  min={0}
-                />
-              </Field>
-              <Field className="w-32">
-                <FieldLabel>Разница</FieldLabel>
+                <FieldGroup className="grid gap-4 sm:grid-cols-3">
+                  <Field>
+                    <FieldLabel>Всего</FieldLabel>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        value={totalWeight}
+                        onChange={(e) =>
+                          handleTotalWeightChange(Number(e.target.value))
+                        }
+                        className="h-12 pr-10 text-center text-lg font-medium"
+                        min={0}
+                        step={0.1}
+                      />
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">кг</span>
+                    </div>
+                  </Field>
+                  <Field>
+                    <FieldLabel>Левая нога</FieldLabel>
+                    <div className="h-12 flex items-center justify-center rounded-md border bg-background text-lg font-medium">
+                      {weightLeft.toFixed(1)} кг
+                    </div>
+                  </Field>
+                  <Field>
+                    <FieldLabel>Правая нога</FieldLabel>
+                    <div className="h-12 flex items-center justify-center rounded-md border bg-background text-lg font-medium">
+                      {weightRight.toFixed(1)} кг
+                    </div>
+                  </Field>
+                </FieldGroup>
+              </div>
+
+              <div className="rounded-xl border bg-muted/20 p-4">
+                <div className="mb-4">
+                  <h3 className="text-sm font-medium">Энергозатраты</h3>
+                  <p className="text-xs text-muted-foreground">Введите значения отдельно для левой и правой стороны</p>
+                </div>
+                <FieldGroup className="grid gap-4 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel>Левая сторона</FieldLabel>
+                    <Input
+                      type="number"
+                      value={leftCost}
+                      onChange={(e) =>
+                        updateGravityData({ leftCost: Number(e.target.value) })
+                      }
+                      className="h-12 text-center text-lg font-medium"
+                      min={0}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel>Правая сторона</FieldLabel>
+                    <Input
+                      type="number"
+                      value={rightCost}
+                      onChange={(e) =>
+                        updateGravityData({ rightCost: Number(e.target.value) })
+                      }
+                      className="h-12 text-center text-lg font-medium"
+                      min={0}
+                    />
+                  </Field>
+                </FieldGroup>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3 xl:w-72 xl:grid-cols-1">
+                <div className="rounded-xl border bg-muted/30 p-4">
+                  <p className="text-xs font-medium text-muted-foreground">Затраты всего</p>
+                  <p className="mt-1 text-xl font-semibold">{totalCost.toFixed(1)}</p>
+                </div>
                 <div className={cn(
-                  'h-11 flex items-center justify-center text-lg font-medium rounded-md',
-                  Math.abs(visit.gravityData.weightLeft - visit.gravityData.weightRight) > 3
-                    ? 'bg-warning/20 text-warning-foreground'
-                    : 'bg-muted'
+                  'rounded-xl border p-4',
+                  costDifference > 0
+                    ? 'border-warning/40 bg-warning/10'
+                    : 'bg-muted/30'
                 )}>
-                  {Math.abs(visit.gravityData.weightLeft - visit.gravityData.weightRight).toFixed(1)} кг
+                  <p className="text-xs font-medium text-muted-foreground">Разница</p>
+                  <p className="mt-1 text-xl font-semibold">{costDifference.toFixed(1)} кг</p>
                 </div>
-              </Field>
-            </FieldGroup>
+                <div className={cn(
+                  'rounded-xl border p-4',
+                  costRatio > 1
+                    ? 'border-warning/40 bg-warning/10'
+                    : 'bg-muted/30'
+                )}>
+                  <p className="text-xs font-medium text-muted-foreground">Превышение</p>
+                  <p className="mt-1 text-xl font-semibold">{costRatio.toFixed(1)}×</p>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
