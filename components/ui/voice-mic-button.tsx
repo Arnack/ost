@@ -22,6 +22,7 @@ export function VoiceMicButton({
   onClick,
 }: VoiceMicButtonProps) {
   const dim = size === 'sm' ? 'h-8 w-8' : 'h-11 w-11'
+  const text = interimText || label || 'Запись'
 
   return (
     <>
@@ -31,7 +32,7 @@ export function VoiceMicButton({
           to   { transform: scaleY(1); }
         }
       `}</style>
-      <div className="relative flex items-center gap-2">
+      <div className={cn('relative flex items-center gap-2', size === 'sm' && 'gap-1.5')}>
         <button
           type="button"
           onClick={onClick}
@@ -41,8 +42,8 @@ export function VoiceMicButton({
             'transition-all duration-200 focus:outline-none select-none',
             dim,
             active
-              ? 'border-red-500 bg-red-500 text-white shadow-lg shadow-red-500/30'
-              : 'border-border bg-background text-muted-foreground hover:border-primary hover:text-primary hover:shadow-sm'
+              ? 'border-red-500 bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-lg shadow-red-500/30'
+              : 'border-border bg-background text-muted-foreground hover:border-primary hover:bg-primary/5 hover:text-primary hover:shadow-sm'
           )}
         >
           {/* Pulse rings when recording */}
@@ -89,10 +90,24 @@ export function VoiceMicButton({
         </button>
 
         {/* Label / interim text bubble */}
-        {active && (
-          <span className="flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs text-red-700 dark:bg-red-950/60 dark:border-red-900 dark:text-red-300 whitespace-nowrap">
-            <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
-            {interimText || label || 'Запись...'}
+        {(active || label) && (
+          <span
+            className={cn(
+              'flex max-w-[260px] items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors',
+              active
+                ? 'border-red-200 bg-red-50 text-red-700 shadow-sm dark:border-red-900 dark:bg-red-950/60 dark:text-red-300'
+                : 'border-border bg-muted/40 text-muted-foreground'
+            )}
+          >
+            <span
+              className={cn(
+                'h-1.5 w-1.5 shrink-0 rounded-full',
+                active ? 'animate-pulse bg-red-500' : 'bg-muted-foreground/50'
+              )}
+            />
+            <span className={cn('truncate', active && interimText && 'italic')}>
+              {active ? text : label}
+            </span>
           </span>
         )}
       </div>

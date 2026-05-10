@@ -29,17 +29,33 @@ export function TabVisitInfo({ visit, client, onUpdate, onUpdateVisit, onNewVisi
   const [activeField, setActiveField] = useState<'notes' | 'plan' | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [voiceSupported, setVoiceSupported] = useState(false)
+  const activeFieldRef = useRef<'notes' | 'plan' | null>(null)
   const notesRef = useRef<HTMLTextAreaElement>(null)
   const planRef = useRef<HTMLTextAreaElement>(null)
+  const latestNotesRef = useRef(visit.notes || '')
+  const latestPlanRef = useRef(visit.nextPlan || '')
+  const voiceBaseRef = useRef('')
 
   useEffect(() => {
     setVoiceSupported(isVoiceSupported())
   }, [])
 
+  useEffect(() => {
+    latestNotesRef.current = visit.notes || ''
+    latestPlanRef.current = visit.nextPlan || ''
+  }, [visit.notes, visit.nextPlan])
+
+  const appendText = (current: string, text: string) => {
+    const trimmed = text.trim()
+    if (!trimmed) return current
+    return current ? `${current} ${trimmed}` : trimmed
+  }
+
   const toggleRecording = (field: 'notes' | 'plan') => {
     if (activeField === field) {
       stopVoiceInput()
       setActiveField(null)
+      activeFieldRef.current = null
       return
     }
 
@@ -49,26 +65,39 @@ export function TabVisitInfo({ visit, client, onUpdate, onUpdateVisit, onNewVisi
     }
 
     setActiveField(field)
+    activeFieldRef.current = field
+    voiceBaseRef.current = field === 'notes' ? latestNotesRef.current : latestPlanRef.current
     startVoiceInput({
       continuous: true,
       interimResults: true,
-      onResult: (text) => {
+      restartOnEnd: true,
+      onResult: (text, isFinal) => {
         if (field === 'notes') {
-          const current = visit.notes || ''
-          onUpdate({ notes: current + (current ? ' ' : '') + text })
+          const nextValue = appendText(voiceBaseRef.current, text)
+          if (isFinal) {
+            voiceBaseRef.current = nextValue
+            latestNotesRef.current = nextValue
+          }
+          onUpdate({ notes: nextValue })
         } else {
-          const current = visit.nextPlan || ''
-          onUpdate({ nextPlan: current + (current ? ' ' : '') + text })
+          const nextValue = appendText(voiceBaseRef.current, text)
+          if (isFinal) {
+            voiceBaseRef.current = nextValue
+            latestPlanRef.current = nextValue
+          }
+          onUpdate({ nextPlan: nextValue })
         }
       },
       onError: (error) => {
         toast.error(error)
         setActiveField(null)
+        activeFieldRef.current = null
       },
       onStart: () => {
         toast.info('Говорите...')
       },
       onEnd: () => {
+        if (activeFieldRef.current === field) return
         setActiveField(null)
       },
     })
@@ -112,7 +141,7 @@ export function TabVisitInfo({ visit, client, onUpdate, onUpdateVisit, onNewVisi
             {voiceSupported && (
               <VoiceMicButton
                 active={activeField === 'notes'}
-                label="Диктую заметки..."
+                label="Диктовка заметок"
                 onClick={() => toggleRecording('notes')}
               />
             )}
@@ -135,7 +164,7 @@ export function TabVisitInfo({ visit, client, onUpdate, onUpdateVisit, onNewVisi
                   {voiceSupported && (
                     <VoiceMicButton
                       active={activeField === 'plan'}
-                      label="Диктую план..."
+                      label="Диктовка плана"
                       size="sm"
                       onClick={() => toggleRecording('plan')}
                     />

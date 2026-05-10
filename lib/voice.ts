@@ -1,12 +1,13 @@
 // Web Speech API wrapper for Russian voice input
 
 export interface VoiceInputOptions {
-  onResult: (text: string) => void
+  onResult: (text: string, isFinal?: boolean) => void
   onError?: (error: string) => void
   onStart?: () => void
   onEnd?: () => void
   continuous?: boolean
   interimResults?: boolean
+  restartOnEnd?: boolean
 }
 
 type SpeechRecognitionLike = {
@@ -35,6 +36,7 @@ type SpeechRecognitionResultEventLike = {
 }
 
 let recognition: SpeechRecognitionLike | null = null
+let shouldKeepListening = false
 
 export function isVoiceSupported(): boolean {
   if (typeof window === 'undefined') return false
@@ -47,75 +49,103 @@ export function startVoiceInput(options: VoiceInputOptions): void {
     return
   }
 
+  shouldKeepListening = true
+
   // Stop any existing recognition
   if (recognition) {
+    recognition.onend = null
     recognition.stop()
   }
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-  recognition = new SpeechRecognition()
 
-  recognition.lang = 'ru-RU'
-  recognition.continuous = options.continuous ?? true
-  recognition.interimResults = options.interimResults ?? true
+  const createRecognition = () => {
+    recognition = new SpeechRecognition()
 
-  recognition.onstart = () => {
-    options.onStart?.()
-  }
+    recognition.lang = 'ru-RU'
+    recognition.continuous = options.continuous ?? true
+    recognition.interimResults = options.interimResults ?? true
 
-  recognition.onresult = (event) => {
-    let finalTranscript = ''
-    let interimTranscript = ''
+    recognition.onstart = () => {
+      options.onStart?.()
+    }
 
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const transcript = event.results[i][0].transcript
-      if (event.results[i].isFinal) {
-        finalTranscript += transcript
-      } else {
-        interimTranscript += transcript
+    recognition.onresult = (event) => {
+      let finalTranscript = ''
+      let interimTranscript = ''
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript
+        } else {
+          interimTranscript += transcript
+        }
+      }
+
+      // Send final result or interim if enabled
+      if (finalTranscript) {
+        options.onResult(finalTranscript, true)
+      } else if (options.interimResults && interimTranscript) {
+        options.onResult(interimTranscript, false)
       }
     }
 
-    // Send final result or interim if enabled
-    if (finalTranscript) {
-      options.onResult(finalTranscript)
-    } else if (options.interimResults && interimTranscript) {
-      options.onResult(interimTranscript)
+    recognition.onerror = (event) => {
+      if (event.error === 'no-speech') {
+        return
+      }
+
+      let errorMessage = 'Ошибка распознавания речи'
+      switch (event.error) {
+        case 'audio-capture':
+          errorMessage = 'Микрофон не найден'
+          shouldKeepListening = false
+          break
+        case 'not-allowed':
+          errorMessage = 'Доступ к микрофону запрещён'
+          shouldKeepListening = false
+          break
+        case 'network':
+          errorMessage = 'Ошибка сети'
+          break
+      }
+      options.onError?.(errorMessage)
+    }
+
+    recognition.onend = () => {
+      if (options.restartOnEnd && shouldKeepListening) {
+        window.setTimeout(() => {
+          if (!shouldKeepListening) return
+
+          try {
+            createRecognition()
+            recognition?.start()
+          } catch (error) {
+            options.onError?.('Не удалось продолжить распознавание речи')
+          }
+        }, 500)
+        return
+      }
+
+      options.onEnd?.()
     }
   }
 
-  recognition.onerror = (event) => {
-    let errorMessage = 'Ошибка распознавания речи'
-    switch (event.error) {
-      case 'no-speech':
-        errorMessage = 'Речь не обнаружена'
-        break
-      case 'audio-capture':
-        errorMessage = 'Микрофон не найден'
-        break
-      case 'not-allowed':
-        errorMessage = 'Доступ к микрофону запрещён'
-        break
-      case 'network':
-        errorMessage = 'Ошибка сети'
-        break
-    }
-    options.onError?.(errorMessage)
-  }
-
-  recognition.onend = () => {
-    options.onEnd?.()
-  }
+  createRecognition()
 
   try {
-    recognition.start()
+    recognition?.start()
   } catch (error) {
     options.onError?.('Не удалось запустить распознавание речи')
   }
 }
 
 export function stopVoiceInput(): void {
+  shouldKeepListening = false
+
   if (recognition) {
+    recognition.onend = null
     recognition.stop()
     recognition = null
   }
