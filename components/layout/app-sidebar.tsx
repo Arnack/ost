@@ -77,7 +77,7 @@ export function AppSidebar() {
                       isActive={isActive}
                       tooltip={item.title}
                       size="lg"
-                      className="h-12"
+                      className="h-12 group-data-[collapsible=icon]:justify-center"
                     >
                       <Link href={item.href}>
                         <item.icon className="h-5 w-5" />
@@ -105,7 +105,7 @@ export function AppSidebar() {
               isActive={pathname === '/settings'}
               tooltip="Настройки"
               size="lg"
-              className="h-12"
+              className="h-12 group-data-[collapsible=icon]:justify-center"
             >
               <Link href="/settings">
                 <Settings className="h-5 w-5" />
