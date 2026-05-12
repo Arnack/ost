@@ -335,9 +335,10 @@ export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
                         draggable={false}
                       />
                       <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid meet">
-                        {spineSegments.map((segment) => {
+                        {spineSegments.map((segment, index) => {
                           const status = getSegmentStatus(segment.id)
                           const isAffected = status !== 'normal'
+                          const labelX = index % 2 === 0 ? 61 : 73
                           return (
                             <g key={segment.id} onClick={() => toggleSegmentStatus(segment.id)} className="cursor-pointer">
                               <rect
@@ -358,7 +359,7 @@ export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
                                 className={cn('fill-transparent transition-colors', isAffected && 'fill-destructive/20')}
                               />
                               <rect
-                                x="61"
+                                x={labelX}
                                 y={segment.y - 2.5}
                                 width="10"
                                 height="5"
@@ -369,7 +370,7 @@ export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
                                 )}
                               />
                               <text
-                                x="66"
+                                x={labelX + 5}
                                 y={segment.y + 1.1}
                                 textAnchor="middle"
                                 className={cn(
@@ -396,9 +397,10 @@ export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
                         draggable={false}
                       />
                       <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid meet">
-                        {sideSpineHotspots.map((segment) => {
+                        {sideSpineHotspots.map((segment, index) => {
                           const status = getSegmentStatus(segment.id)
                           const isAffected = status !== 'normal'
+                          const labelX = index % 2 === 0 ? 60 : 71
                           return (
                             <g key={segment.id} onClick={() => toggleSegmentStatus(segment.id)} className="cursor-pointer">
                               <circle
@@ -411,7 +413,7 @@ export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
                                 )}
                               />
                               <rect
-                                x="60"
+                                x={labelX}
                                 y={segment.y - 2.4}
                                 width="9"
                                 height="4.8"
@@ -422,7 +424,7 @@ export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
                                 )}
                               />
                               <text
-                                x="64.5"
+                                x={labelX + 4.5}
                                 y={segment.y + 1}
                                 textAnchor="middle"
                                 className={cn(
