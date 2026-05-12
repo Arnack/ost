@@ -34,37 +34,43 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files) return
-    Array.from(files).forEach((file) => {
+    const selectedFiles = Array.from(files)
+    Promise.all(selectedFiles.map((file) => new Promise<Photo>((resolve) => {
       const reader = new FileReader()
       reader.onload = (event) => {
-        const newPhoto: Photo = {
+        resolve({
           id: crypto.randomUUID(),
           url: event.target?.result as string,
           date: new Date().toISOString(),
-        }
-        onUpdate({ photos: [...client.photos, newPhoto] })
+        })
       }
       reader.readAsDataURL(file)
+    }))).then((newPhotos) => {
+      onUpdate({ photos: [...client.photos, ...newPhotos] })
     })
+    e.target.value = ''
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files) return
-    Array.from(files).forEach((file) => {
+    const selectedFiles = Array.from(files)
+    Promise.all(selectedFiles.map((file) => new Promise<ClientFile>((resolve) => {
       const reader = new FileReader()
       reader.onload = (event) => {
-        const newFile: ClientFile = {
+        resolve({
           id: crypto.randomUUID(),
           name: file.name,
           url: event.target?.result as string,
           type: file.type,
           date: new Date().toISOString(),
-        }
-        onUpdate({ files: [...client.files, newFile] })
+        })
       }
       reader.readAsDataURL(file)
+    }))).then((newFiles) => {
+      onUpdate({ files: [...client.files, ...newFiles] })
     })
+    e.target.value = ''
   }
 
   const handleDeletePhoto = (photoId: string) => {
