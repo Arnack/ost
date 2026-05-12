@@ -37,6 +37,7 @@ type SpeechRecognitionResultEventLike = {
 
 let recognition: SpeechRecognitionLike | null = null
 let shouldKeepListening = false
+let restartTimer: number | null = null
 
 export function isVoiceSupported(): boolean {
   if (typeof window === 'undefined') return false
@@ -115,7 +116,7 @@ export function startVoiceInput(options: VoiceInputOptions): void {
 
     recognition.onend = () => {
       if (options.restartOnEnd && shouldKeepListening) {
-        window.setTimeout(() => {
+        restartTimer = window.setTimeout(() => {
           if (!shouldKeepListening) return
 
           try {
@@ -143,6 +144,11 @@ export function startVoiceInput(options: VoiceInputOptions): void {
 
 export function stopVoiceInput(): void {
   shouldKeepListening = false
+
+  if (restartTimer !== null) {
+    window.clearTimeout(restartTimer)
+    restartTimer = null
+  }
 
   if (recognition) {
     recognition.onend = null

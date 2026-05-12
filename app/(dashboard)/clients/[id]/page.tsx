@@ -217,6 +217,31 @@ export default function ClientCardPage() {
     )
   }, [client, currentVisit])
 
+  const handleSelectVisit = useCallback((visitId: string) => {
+    if (!client) return
+    const selectedVisit = visitsWithCurrent.find((visit) => visit.id === visitId)
+    if (!selectedVisit) return
+
+    setClient((prev) => {
+      if (!prev || !currentVisit) return prev
+      const visitIndex = prev.visits.findIndex((visit) => visit.id === currentVisit.id)
+      if (visitIndex >= 0) {
+        return {
+          ...prev,
+          visits: prev.visits.map((visit) =>
+            visit.id === currentVisit.id ? currentVisit : visit
+          ),
+        }
+      }
+      return {
+        ...prev,
+        visits: [...prev.visits, currentVisit],
+      }
+    })
+    setCurrentVisit(selectedVisit)
+    setHasChanges(true)
+  }, [client, currentVisit, visitsWithCurrent])
+
   if (!client) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -244,6 +269,21 @@ export default function ClientCardPage() {
               Визитов: {client.visits.length}
             </p>
           </div>
+          {visitsWithCurrent.length > 0 && currentVisit && (
+            <select
+              value={currentVisit.id}
+              onChange={(event) => handleSelectVisit(event.target.value)}
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              {[...visitsWithCurrent]
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                .map((visit, index) => (
+                  <option key={visit.id} value={visit.id}>
+                    {`Приём ${visitsWithCurrent.length - index}: ${new Date(visit.date).toLocaleDateString('ru-RU')}`}
+                  </option>
+                ))}
+            </select>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -315,7 +355,7 @@ export default function ClientCardPage() {
 
           <TabsContent value="gravity" className="h-full m-0">
             {currentVisit && (
-              <TabGravity visit={currentVisit} onUpdate={updateVisit} />
+              <TabGravity visit={currentVisit} allVisits={visitsWithCurrent} onUpdate={updateVisit} />
             )}
           </TabsContent>
 

@@ -79,8 +79,8 @@ export function TabAnamnesis({ client, onUpdate }: TabAnamnesisProps) {
         setInterimText('')
       },
       onEnd: () => {
+        if (activeVoiceField === key) return
         setActiveVoiceField(null)
-        setInterimText('')
       },
     })
   }

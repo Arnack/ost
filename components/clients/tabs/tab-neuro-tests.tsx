@@ -73,46 +73,24 @@ const defaultTestSections: TestSection[] = [
       { key: 'handsBehindBackLeftRight', label: 'Руки за спину лев/прав', placeholder: 'норма / отклонение', type: 'status' },
       { key: 'headTiltLeftRight', label: 'Наклон головы влево/вправо', placeholder: 'норма / отклонение', type: 'status' },
       { key: 'headTurnLeftRight', label: 'Поворот головы влево/вправо', placeholder: 'норма / отклонение', type: 'status' },
+      { key: 'stabilityLeft', label: 'Стабильность левая', placeholder: 'норма / отклонение', type: 'status' },
+      { key: 'stabilityRight', label: 'Стабильность правая', placeholder: 'норма / отклонение', type: 'status' },
+      { key: 'backwardBend', label: 'Наклон назад', placeholder: 'норма / отклонение', type: 'status' },
+      { key: 'tiltLeft', label: 'Наклон влево', placeholder: 'норма / отклонение', type: 'status' },
+      { key: 'tiltRight', label: 'Наклон вправо', placeholder: 'норма / отклонение', type: 'status' },
       { key: 'notes', label: 'Комментарий', placeholder: 'Дополнительные наблюдения' },
     ],
   },
-  {
-    name: 'Стабильность левая',
-    fields: [
-      { key: 'value', label: 'Значение', placeholder: 'норма / отклонение', type: 'status' },
-    ],
-  },
-  {
-    name: 'Стабильность правая',
-    fields: [
-      { key: 'value', label: 'Значение', placeholder: 'норма / отклонение', type: 'status' },
-    ],
-  },
-  {
-    name: 'Наклон вперёд',
-    fields: [
-      { key: 'value', label: 'Значение', placeholder: 'норма / отклонение', type: 'status' },
-    ],
-  },
-  {
-    name: 'Наклон назад',
-    fields: [
-      { key: 'value', label: 'Значение', placeholder: 'норма / отклонение', type: 'status' },
-    ],
-  },
-  {
-    name: 'Наклон влево',
-    fields: [
-      { key: 'value', label: 'Значение', placeholder: 'норма / отклонение', type: 'status' },
-    ],
-  },
-  {
-    name: 'Наклон вправо',
-    fields: [
-      { key: 'value', label: 'Значение', placeholder: 'норма / отклонение', type: 'status' },
-    ],
-  },
 ]
+
+const legacyMobilityTestNames: Record<string, string> = {
+  stabilityLeft: 'Стабильность левая',
+  stabilityRight: 'Стабильность правая',
+  forwardBend: 'Наклон вперёд',
+  backwardBend: 'Наклон назад',
+  tiltLeft: 'Наклон влево',
+  tiltRight: 'Наклон вправо',
+}
 
 export function TabNeuroTests({ visit, allVisits, onUpdate }: TabNeuroTestsProps) {
   const previousVisits = allVisits
@@ -189,12 +167,24 @@ export function TabNeuroTests({ visit, allVisits, onUpdate }: TabNeuroTestsProps
     const prevVisit = previousVisits[visitIndex]
     if (!prevVisit) return ''
     const test = prevVisit.neuroTests.find((t) => t.name === testName)
-    return String((test?.results as Record<string, string | undefined> | undefined)?.[field] || '')
+    const currentValue = String((test?.results as Record<string, string | undefined> | undefined)?.[field] || '')
+    if (currentValue) return currentValue
+    if (testName === 'Подвижность суставов' && legacyMobilityTestNames[field]) {
+      const legacyTest = prevVisit.neuroTests.find((t) => t.name === legacyMobilityTestNames[field])
+      return String((legacyTest?.results as Record<string, string | undefined> | undefined)?.value || '')
+    }
+    return ''
   }
 
   const getTestResult = (testName: string, field: string) => {
     const test = displayedTests.find((item) => item.name === testName)
-    return String((test?.results as Record<string, string | undefined> | undefined)?.[field] || '')
+    const currentValue = String((test?.results as Record<string, string | undefined> | undefined)?.[field] || '')
+    if (currentValue) return currentValue
+    if (testName === 'Подвижность суставов' && legacyMobilityTestNames[field]) {
+      const legacyTest = visit.neuroTests.find((item) => item.name === legacyMobilityTestNames[field])
+      return String((legacyTest?.results as Record<string, string | undefined> | undefined)?.value || '')
+    }
+    return ''
   }
 
   return (
@@ -287,7 +277,7 @@ export function TabNeuroTests({ visit, allVisits, onUpdate }: TabNeuroTestsProps
           </Button>
         </div>
 
-        {displayedTests.filter((test) => !defaultTestSections.some((section) => section.name === test.name)).length > 0 && (
+        {displayedTests.filter((test) => !defaultTestSections.some((section) => section.name === test.name) && !Object.values(legacyMobilityTestNames).includes(test.name)).length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Дополнительные тесты</CardTitle>
@@ -295,7 +285,7 @@ export function TabNeuroTests({ visit, allVisits, onUpdate }: TabNeuroTestsProps
             <CardContent>
               <div className="grid gap-3">
                 {displayedTests
-                  .filter((test) => !defaultTestSections.some((section) => section.name === test.name))
+                  .filter((test) => !defaultTestSections.some((section) => section.name === test.name) && !Object.values(legacyMobilityTestNames).includes(test.name))
                   .map((test) => (
                     <div key={test.id} className="grid gap-3 rounded-xl border bg-muted/20 p-3 md:grid-cols-[220px_160px_1fr_auto]">
                       <Input

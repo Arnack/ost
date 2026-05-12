@@ -14,7 +14,7 @@ import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { Separator } from '@/components/ui/separator'
 import { VoiceMicButton } from '@/components/ui/voice-mic-button'
 import { isVoiceSupported, startVoiceInput, stopVoiceInput } from '@/lib/voice'
-import { analyzeVisit } from '@/lib/claude'
+import { analyzeVisit } from '@/lib/ai'
 import type { Visit, Client } from '@/lib/types'
 
 interface TabVisitInfoProps {

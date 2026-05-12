@@ -10,6 +10,7 @@ import type { Visit, GravityData } from '@/lib/types'
 
 interface TabGravityProps {
   visit: Visit
+  allVisits?: Visit[]
   onUpdate: (updates: Partial<Visit>) => void
 }
 
@@ -28,7 +29,7 @@ const referencePatterns: Record<string, Grid4> = {
   breathing:   { upperLeft: '+', upperRight: '+', lowerLeft: '-', lowerRight: '-' },
   rightStep:   { upperLeft: '+', upperRight: '-', lowerLeft: '-', lowerRight: '+' },
   leftStep:    { upperLeft: '-', upperRight: '+', lowerLeft: '+', lowerRight: '-' },
-  vertical:    { upperLeft: '+', upperRight: '+', lowerLeft: '+', lowerRight: '+' },
+  vertical:    { upperLeft: '-', upperRight: '-', lowerLeft: '+', lowerRight: '+' },
 }
 
 const patternLabels: Record<string, string> = {
@@ -221,7 +222,7 @@ function FeetDiagram({
   )
 }
 
-export function TabGravity({ visit, onUpdate }: TabGravityProps) {
+export function TabGravity({ visit, allVisits = [], onUpdate }: TabGravityProps) {
   const updateGravityData = (updates: Partial<GravityData>) => {
     onUpdate({
       gravityData: {
@@ -287,6 +288,19 @@ export function TabGravity({ visit, onUpdate }: TabGravityProps) {
       weightLeft: value / 2,
       weightRight: value / 2,
     })
+  }
+
+  const previousVisits = allVisits
+    .filter((item) => item.id !== visit.id && new Date(item.date) < new Date(visit.date))
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5)
+
+  const getVisitPattern4 = (item: Visit, key: string): Grid4 => {
+    const stored = item.gravityData[`pattern4_${key}` as keyof GravityData]
+    if (stored && typeof stored === 'object' && 'upperLeft' in stored) return stored as Grid4
+    const old = item.gravityData.patterns?.[key as keyof NonNullable<GravityData['patterns']>]
+    const value = (old as GridValue) || 'neutral'
+    return { upperLeft: value, upperRight: value, lowerLeft: value, lowerRight: value }
   }
 
   return (
@@ -364,9 +378,40 @@ export function TabGravity({ visit, onUpdate }: TabGravityProps) {
               </div>
               <div className="rounded-xl border bg-muted/20 p-4">
                 <h3 className="text-sm font-medium">Предыдущие приёмы</h3>
-                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                  Здесь будут отображаться сохранённые значения прошлых приёмов для сравнения динамики.
-                </p>
+                {previousVisits.length === 0 ? (
+                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                    Нет сохранённых прошлых приёмов для сравнения динамики.
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    {previousVisits.map((previousVisit) => {
+                      const toes = previousVisit.gravityData.markedToes || []
+                      return (
+                        <div key={previousVisit.id} className="rounded-lg border bg-background p-3">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            {new Date(previousVisit.date).toLocaleDateString('ru-RU')}
+                          </p>
+                          <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                            {Object.keys(patternLabels).map((key) => {
+                              const pattern = getVisitPattern4(previousVisit, key)
+                              return (
+                                <div key={key}>
+                                  <p className="text-muted-foreground">{patternLabels[key]}</p>
+                                  <p className="font-medium">
+                                    {pattern.upperLeft}/{pattern.upperRight} · {pattern.lowerLeft}/{pattern.lowerRight}
+                                  </p>
+                                </div>
+                              )
+                            })}
+                          </div>
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            Пальцы: {toes.length > 0 ? toes.join(', ') : '—'}
+                          </p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>

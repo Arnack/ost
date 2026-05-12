@@ -46,7 +46,8 @@ const frontRegions = [
 
 const backRegions = [
   { id: 'occiput-back',      name: 'Затылок',         x: 45, y: 5,  width: 10, height: 8,  bodySide: 'center' as const },
-  { id: 'cervical-back',     name: 'Шейный отдел',    x: 44, y: 13, width: 12, height: 6,  bodySide: 'center' as const },
+  { id: 'cervical-back-left', name: 'Шейный отдел Л', x: 44, y: 13, width: 6,  height: 6,  bodySide: 'left' as const },
+  { id: 'cervical-back-right', name: 'Шейный отдел П', x: 50, y: 13, width: 6, height: 6,  bodySide: 'right' as const },
   { id: 'thoracic-back',     name: 'Грудной отдел',   x: 38, y: 19, width: 24, height: 18, bodySide: 'center' as const },
   { id: 'lumbar-back',       name: 'Поясница',        x: 39, y: 37, width: 22, height: 13, bodySide: 'center' as const },
   { id: 'tailbone-back',     name: 'Копчик',          x: 45, y: 50, width: 10, height: 6,  bodySide: 'center' as const },

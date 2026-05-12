@@ -52,7 +52,7 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { storage } from "@/lib/storage"
 import type { Client, Appointment, Payment } from "@/lib/types"
-import { analyzeClientHistory } from "@/lib/claude"
+import { analyzeClientHistory } from "@/lib/ai"
 
 // Compute colors from CSS vars at runtime
 const CHART_COLORS = {
@@ -821,7 +821,7 @@ export default function AnalyticsPage() {
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    Нажмите кнопку, чтобы получить Claude-анализ полной истории клиента.
+                    Нажмите кнопку, чтобы получить AI-анализ полной истории клиента.
                   </p>
                 )}
               </div>

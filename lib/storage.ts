@@ -143,12 +143,16 @@ export function clearOsteoData(): void {
 
 // Settings operations
 const defaultSettings: Settings = {
+  gigaChatModel: 'GigaChat',
   defaultSessionDuration: 60,
   defaultSessionCost: 5000,
 }
 
 export function getSettings(): Settings {
-  return getItem<Settings>(STORAGE_KEYS.SETTINGS, defaultSettings)
+  return {
+    ...defaultSettings,
+    ...getItem<Settings>(STORAGE_KEYS.SETTINGS, defaultSettings),
+  }
 }
 
 export function saveSettings(settings: Settings): void {
@@ -195,6 +199,9 @@ function isSettings(value: unknown): value is Settings {
   return isRecord(value)
     && typeof value.defaultSessionDuration === 'number'
     && typeof value.defaultSessionCost === 'number'
+    && (value.claudeApiKey === undefined || typeof value.claudeApiKey === 'string')
+    && (value.gigaChatApiKey === undefined || typeof value.gigaChatApiKey === 'string')
+    && (value.gigaChatModel === undefined || typeof value.gigaChatModel === 'string')
 }
 
 export function importData(jsonString: string): boolean {

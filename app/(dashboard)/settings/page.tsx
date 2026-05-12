@@ -33,6 +33,7 @@ import type { Settings } from '@/lib/types'
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings>({
+    gigaChatModel: 'GigaChat',
     defaultSessionDuration: 60,
     defaultSessionCost: 5000,
   })
@@ -122,34 +123,46 @@ export default function SettingsPage() {
             Интеграция с AI
           </CardTitle>
           <CardDescription>
-            Настройте API ключ Claude для AI-анализа визитов
+            Настройте ключ GigaChat для AI-анализа визитов
           </CardDescription>
         </CardHeader>
         <CardContent>
           <FieldGroup>
             <Field>
-              <FieldLabel>API ключ Claude (Anthropic)</FieldLabel>
+              <FieldLabel>Ключ авторизации GigaChat</FieldLabel>
               <Input
                 type="password"
-                value={settings.claudeApiKey || ''}
+                value={settings.gigaChatApiKey || ''}
                 onChange={(e) => {
-                  setSettings({ ...settings, claudeApiKey: e.target.value })
+                  setSettings({ ...settings, gigaChatApiKey: e.target.value })
                   setHasChanges(true)
                 }}
-                placeholder="sk-ant-..."
+                placeholder="Base64 Client ID:Client Secret"
                 className="h-11 font-mono"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Получите ключ на{' '}
+                Получите данные доступа в{' '}
                 <a
-                  href="https://console.anthropic.com/"
+                  href="https://developers.sber.ru/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary underline"
                 >
-                  console.anthropic.com
+                  developers.sber.ru
                 </a>
               </p>
+            </Field>
+            <Field>
+              <FieldLabel>Модель GigaChat</FieldLabel>
+              <Input
+                value={settings.gigaChatModel || 'GigaChat'}
+                onChange={(e) => {
+                  setSettings({ ...settings, gigaChatModel: e.target.value })
+                  setHasChanges(true)
+                }}
+                placeholder="GigaChat"
+                className="h-11"
+              />
             </Field>
           </FieldGroup>
         </CardContent>

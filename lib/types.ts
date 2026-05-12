@@ -77,7 +77,15 @@ export interface NeuroTest {
     previous?: string
     initial?: string
     postSession?: string
+    [key: string]: string | undefined
   }
+}
+
+export type GravityPattern4 = {
+  upperLeft: '+' | '-' | 'neutral'
+  upperRight: '+' | '-' | 'neutral'
+  lowerLeft: '+' | '-' | 'neutral'
+  lowerRight: '+' | '-' | 'neutral'
 }
 
 export interface GravityData {
@@ -87,6 +95,11 @@ export interface GravityData {
     leftStep: '+' | '-' | 'neutral'
     vertical: '+' | '-' | 'neutral'
   }
+  pattern4_breathing?: GravityPattern4
+  pattern4_rightStep?: GravityPattern4
+  pattern4_leftStep?: GravityPattern4
+  pattern4_vertical?: GravityPattern4
+  markedToes?: string[]
   littleToeMarker?: {
     foot: 'left' | 'right'
     toe: 1 | 2 | 3 | 4 | 5
@@ -213,6 +226,8 @@ export interface Appointment {
 
 export interface Settings {
   claudeApiKey?: string
+  gigaChatApiKey?: string
+  gigaChatModel?: string
   defaultSessionDuration: number
   defaultSessionCost: number
 }
