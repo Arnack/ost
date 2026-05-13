@@ -67,6 +67,8 @@ export default function CalendarPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null)
+  const [defaultDuration, setDefaultDuration] = useState(60)
+  const [defaultCost, setDefaultCost] = useState(5000)
 
   // Form state
   const [formClientId, setFormClientId] = useState<string>('')
@@ -76,8 +78,12 @@ export default function CalendarPage() {
   const [formNotes, setFormNotes] = useState('')
 
   useEffect(() => {
-    setAppointments(getAppointments())
-    setClients(getClients())
+    Promise.all([getAppointments(), getClients(), getSettings()]).then(([appointmentsData, clientsData, settings]) => {
+      setAppointments(appointmentsData)
+      setClients(clientsData)
+      setDefaultDuration(settings.defaultSessionDuration || 60)
+      setDefaultCost(settings.defaultSessionCost || 0)
+    })
   }, [])
 
   // Generate calendar days
@@ -111,7 +117,7 @@ export default function CalendarPage() {
     setFormClientId('')
     setFormClientName('')
     setFormTime('10:00')
-    setFormDuration(getSettings().defaultSessionDuration || 60)
+    setFormDuration(defaultDuration)
     setFormNotes('')
     setIsDialogOpen(true)
   }
@@ -129,7 +135,7 @@ export default function CalendarPage() {
   }
 
   // Save appointment
-  const handleSaveAppointment = () => {
+  const handleSaveAppointment = async () => {
     if (!selectedDate) return
 
     const client = clients.find((c) => c.id === formClientId)
@@ -147,31 +153,31 @@ export default function CalendarPage() {
       status: editingAppointment?.status || 'scheduled',
     }
 
-    saveAppointment(appointment)
-    setAppointments(getAppointments())
+    await saveAppointment(appointment)
+    setAppointments(await getAppointments())
     setIsDialogOpen(false)
     toast.success(editingAppointment ? 'Запись обновлена' : 'Запись создана')
   }
 
   // Delete appointment
-  const handleDeleteAppointment = () => {
+  const handleDeleteAppointment = async () => {
     if (!editingAppointment) return
 
-    deleteAppointment(editingAppointment.id)
-    setAppointments(getAppointments())
+    await deleteAppointment(editingAppointment.id)
+    setAppointments(await getAppointments())
     setIsDialogOpen(false)
     toast.success('Запись удалена')
   }
 
   // Mark as completed
-  const handleMarkCompleted = (appointment: Appointment) => {
+  const handleMarkCompleted = async (appointment: Appointment) => {
     const updated: Appointment = { ...appointment, status: 'completed' }
-    saveAppointment(updated)
-    setAppointments(getAppointments())
+    await saveAppointment(updated)
+    setAppointments(await getAppointments())
     toast.success('Запись отмечена как выполненная')
   }
 
-  const handleCreateVisitFromAppointment = (appointment: Appointment) => {
+  const handleCreateVisitFromAppointment = async (appointment: Appointment) => {
     if (!appointment.clientId) {
       toast.error('Выберите клиента для создания визита')
       return
@@ -204,15 +210,15 @@ export default function CalendarPage() {
       visitId: visit.id,
     }
 
-    saveClient(updatedClient)
-    saveAppointment(updatedAppointment)
-    setClients(getClients())
-    setAppointments(getAppointments())
+    await saveClient(updatedClient)
+    await saveAppointment(updatedAppointment)
+    setClients(await getClients())
+    setAppointments(await getAppointments())
     setEditingAppointment(updatedAppointment)
     toast.success('Визит создан из записи')
   }
 
-  const handleCreatePaymentFromAppointment = (appointment: Appointment) => {
+  const handleCreatePaymentFromAppointment = async (appointment: Appointment) => {
     if (!appointment.clientId) {
       toast.error('Выберите клиента для создания оплаты')
       return
@@ -222,8 +228,7 @@ export default function CalendarPage() {
       return
     }
 
-    const settings = getSettings()
-    const cost = settings.defaultSessionCost || 0
+    const cost = defaultCost
     const payment = {
       id: crypto.randomUUID(),
       visitId: appointment.visitId,
@@ -241,9 +246,9 @@ export default function CalendarPage() {
     }
     const updatedAppointment: Appointment = { ...appointment, paymentId: payment.id }
 
-    addPayment(payment)
-    saveAppointment(updatedAppointment)
-    setAppointments(getAppointments())
+    await addPayment(payment)
+    await saveAppointment(updatedAppointment)
+    setAppointments(await getAppointments())
     setEditingAppointment(updatedAppointment)
     toast.success('Оплата создана')
   }

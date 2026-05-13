@@ -101,7 +101,7 @@ ${visit.nextPlan || 'Не указан'}
 }
 
 async function requestAnalysis(prompt: string): Promise<string> {
-  const settings = getSettings()
+  const settings = await getSettings()
 
   if (!settings.gigaChatApiKey) {
     return 'Для AI-анализа необходимо добавить ключ GigaChat в разделе Настройки.'

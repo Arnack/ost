@@ -1,192 +1,263 @@
-// OsteoTab CRM - localStorage Abstraction
-
 import type { Client, Appointment, Settings, Payment } from './types'
 import { normalizeClient, normalizePayment } from './types'
 
-const STORAGE_KEYS = {
-  CLIENTS: 'osteotab_clients',
-  APPOINTMENTS: 'osteotab_appointments',
-  PAYMENTS: 'osteotab_payments',
-  SETTINGS: 'osteotab_settings',
+const DB_NAME = 'osteotab_db'
+const DB_VERSION = 1
+
+const STORE_NAMES = {
+  CLIENTS: 'clients',
+  APPOINTMENTS: 'appointments',
+  PAYMENTS: 'payments',
+  SETTINGS: 'settings',
 } as const
 
-// Generic storage helpers
-function getItem<T>(key: string, defaultValue: T): T {
-  if (typeof window === 'undefined') return defaultValue
-  try {
-    const item = localStorage.getItem(key)
-    return item ? JSON.parse(item) : defaultValue
-  } catch {
-    return defaultValue
-  }
-}
+type StoreName = typeof STORE_NAMES[keyof typeof STORE_NAMES]
 
-function setItem<T>(key: string, value: T): void {
-  if (typeof window === 'undefined') return
-  try {
-    localStorage.setItem(key, JSON.stringify(value))
-  } catch (error) {
-    console.error(`[v0] Error saving to localStorage:`, error)
-  }
-}
-
-// Client operations
-export function getClients(): Client[] {
-  return getItem<Client[]>(STORAGE_KEYS.CLIENTS, []).map(normalizeClient)
-}
-
-export function setClients(clients: Client[]): void {
-  setItem(STORAGE_KEYS.CLIENTS, clients)
-}
-
-export function getClient(id: string): Client | undefined {
-  const clients = getClients()
-  return clients.find((c) => c.id === id)
-}
-
-export function saveClient(client: Client): void {
-  const clients = getClients()
-  const index = clients.findIndex((c) => c.id === client.id)
-  if (index >= 0) {
-    clients[index] = client
-  } else {
-    clients.push(client)
-  }
-  setClients(clients)
-}
-
-export function deleteClient(id: string): void {
-  const clients = getClients()
-  setClients(clients.filter((c) => c.id !== id))
-}
-
-// Appointment operations
-export function getAppointments(): Appointment[] {
-  return getItem<Appointment[]>(STORAGE_KEYS.APPOINTMENTS, [])
-}
-
-export function setAppointments(appointments: Appointment[]): void {
-  setItem(STORAGE_KEYS.APPOINTMENTS, appointments)
-}
-
-export function getAppointment(id: string): Appointment | undefined {
-  const appointments = getAppointments()
-  return appointments.find((a) => a.id === id)
-}
-
-export function saveAppointment(appointment: Appointment): void {
-  const appointments = getAppointments()
-  const index = appointments.findIndex((a) => a.id === appointment.id)
-  if (index >= 0) {
-    appointments[index] = appointment
-  } else {
-    appointments.push(appointment)
-  }
-  setAppointments(appointments)
-}
-
-export function deleteAppointment(id: string): void {
-  const appointments = getAppointments()
-  setAppointments(appointments.filter((a) => a.id !== id))
-}
-
-export function getAppointmentsForDate(date: string): Appointment[] {
-  const appointments = getAppointments()
-  return appointments.filter((a) => a.date.startsWith(date))
-}
-
-export function getTodayAppointments(): Appointment[] {
-  const today = new Date().toISOString().split('T')[0]
-  return getAppointmentsForDate(today)
-}
-
-// Payment operations
-export function getPayments(): Payment[] {
-  return getItem<Payment[]>(STORAGE_KEYS.PAYMENTS, []).map(normalizePayment)
-}
-
-export function setPayments(payments: Payment[]): void {
-  setItem(STORAGE_KEYS.PAYMENTS, payments)
-}
-
-export function getPayment(id: string): Payment | undefined {
-  const payments = getPayments()
-  return payments.find((p) => p.id === id)
-}
-
-export function addPayment(payment: Payment): void {
-  const payments = getPayments()
-  payments.push(payment)
-  setPayments(payments)
-}
-
-export function updatePayment(payment: Payment): void {
-  const payments = getPayments()
-  const index = payments.findIndex((p) => p.id === payment.id)
-  if (index >= 0) {
-    payments[index] = payment
-    setPayments(payments)
-  }
-}
-
-export function deletePayment(id: string): void {
-  const payments = getPayments()
-  setPayments(payments.filter((p) => p.id !== id))
-}
-
-export function clearOsteoData(): void {
-  setClients([])
-  setAppointments([])
-  setPayments([])
-  saveSettings(defaultSettings)
-}
-
-// Settings operations
 const defaultSettings: Settings = {
   gigaChatModel: 'GigaChat',
   defaultSessionDuration: 60,
   defaultSessionCost: 5000,
 }
 
-export function getSettings(): Settings {
-  return {
-    ...defaultSettings,
-    ...getItem<Settings>(STORAGE_KEYS.SETTINGS, defaultSettings),
+export const STORAGE_CHANGED_EVENT = 'osteotab-storage-changed'
+
+function notifyStorageChanged(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(STORAGE_CHANGED_EVENT))
   }
 }
 
-export function saveSettings(settings: Settings): void {
-  setItem(STORAGE_KEYS.SETTINGS, settings)
+function openDatabase(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined' || !window.indexedDB) {
+      reject(new Error('IndexedDB is not available'))
+      return
+    }
+
+    const request = indexedDB.open(DB_NAME, DB_VERSION)
+
+    request.onupgradeneeded = () => {
+      const db = request.result
+      Object.values(STORE_NAMES).forEach((storeName) => {
+        if (!db.objectStoreNames.contains(storeName)) {
+          db.createObjectStore(storeName, { keyPath: 'id' })
+        }
+      })
+    }
+
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
 }
 
-// Search clients
-export function searchClients(query: string): Client[] {
-  const clients = getClients()
+function runStore<T>(storeName: StoreName, mode: IDBTransactionMode, action: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  return openDatabase().then((db) => new Promise<T>((resolve, reject) => {
+    const transaction = db.transaction(storeName, mode)
+    const store = transaction.objectStore(storeName)
+    const request = action(store)
+
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+    transaction.oncomplete = () => db.close()
+    transaction.onerror = () => {
+      db.close()
+      reject(transaction.error)
+    }
+  }))
+}
+
+async function getAll<T>(storeName: StoreName): Promise<T[]> {
+  try {
+    return await runStore<T[]>(storeName, 'readonly', (store) => store.getAll() as IDBRequest<T[]>)
+  } catch (error) {
+    console.error('[v0] Error reading IndexedDB:', error)
+    return []
+  }
+}
+
+async function putItem<T extends { id: string }>(storeName: StoreName, value: T): Promise<void> {
+  try {
+    await runStore<IDBValidKey>(storeName, 'readwrite', (store) => store.put(value))
+  } catch (error) {
+    console.error('[v0] Error saving to IndexedDB:', error)
+  }
+}
+
+async function deleteItem(storeName: StoreName, id: string): Promise<void> {
+  try {
+    await runStore<undefined>(storeName, 'readwrite', (store) => store.delete(id))
+  } catch (error) {
+    console.error('[v0] Error deleting from IndexedDB:', error)
+  }
+}
+
+async function clearStore(storeName: StoreName): Promise<void> {
+  try {
+    await runStore<undefined>(storeName, 'readwrite', (store) => store.clear())
+  } catch (error) {
+    console.error('[v0] Error clearing IndexedDB:', error)
+  }
+}
+
+export async function getClients(): Promise<Client[]> {
+  return (await getAll<Client>(STORE_NAMES.CLIENTS)).map(normalizeClient)
+}
+
+export async function setClients(clients: Client[]): Promise<void> {
+  await clearStore(STORE_NAMES.CLIENTS)
+  await Promise.all(clients.map((client) => putItem(STORE_NAMES.CLIENTS, normalizeClient(client))))
+  notifyStorageChanged()
+}
+
+export async function getClient(id: string): Promise<Client | undefined> {
+  try {
+    const client = await runStore<Client | undefined>(STORE_NAMES.CLIENTS, 'readonly', (store) => store.get(id))
+    return client ? normalizeClient(client) : undefined
+  } catch {
+    return undefined
+  }
+}
+
+export async function saveClient(client: Client): Promise<void> {
+  await putItem(STORE_NAMES.CLIENTS, normalizeClient(client))
+  notifyStorageChanged()
+}
+
+export async function deleteClient(id: string): Promise<void> {
+  await deleteItem(STORE_NAMES.CLIENTS, id)
+  notifyStorageChanged()
+}
+
+export async function getAppointments(): Promise<Appointment[]> {
+  return getAll<Appointment>(STORE_NAMES.APPOINTMENTS)
+}
+
+export async function setAppointments(appointments: Appointment[]): Promise<void> {
+  await clearStore(STORE_NAMES.APPOINTMENTS)
+  await Promise.all(appointments.map((appointment) => putItem(STORE_NAMES.APPOINTMENTS, appointment)))
+  notifyStorageChanged()
+}
+
+export async function getAppointment(id: string): Promise<Appointment | undefined> {
+  try {
+    return await runStore<Appointment | undefined>(STORE_NAMES.APPOINTMENTS, 'readonly', (store) => store.get(id))
+  } catch {
+    return undefined
+  }
+}
+
+export async function saveAppointment(appointment: Appointment): Promise<void> {
+  await putItem(STORE_NAMES.APPOINTMENTS, appointment)
+  notifyStorageChanged()
+}
+
+export async function deleteAppointment(id: string): Promise<void> {
+  await deleteItem(STORE_NAMES.APPOINTMENTS, id)
+  notifyStorageChanged()
+}
+
+export async function getAppointmentsForDate(date: string): Promise<Appointment[]> {
+  const appointments = await getAppointments()
+  return appointments.filter((appointment) => appointment.date.startsWith(date))
+}
+
+export async function getTodayAppointments(): Promise<Appointment[]> {
+  const today = new Date().toISOString().split('T')[0]
+  return getAppointmentsForDate(today)
+}
+
+export async function getPayments(): Promise<Payment[]> {
+  return (await getAll<Payment>(STORE_NAMES.PAYMENTS)).map(normalizePayment)
+}
+
+export async function setPayments(payments: Payment[]): Promise<void> {
+  await clearStore(STORE_NAMES.PAYMENTS)
+  await Promise.all(payments.map((payment) => putItem(STORE_NAMES.PAYMENTS, normalizePayment(payment))))
+  notifyStorageChanged()
+}
+
+export async function getPayment(id: string): Promise<Payment | undefined> {
+  try {
+    const payment = await runStore<Payment | undefined>(STORE_NAMES.PAYMENTS, 'readonly', (store) => store.get(id))
+    return payment ? normalizePayment(payment) : undefined
+  } catch {
+    return undefined
+  }
+}
+
+export async function addPayment(payment: Payment): Promise<void> {
+  await putItem(STORE_NAMES.PAYMENTS, normalizePayment(payment))
+  notifyStorageChanged()
+}
+
+export async function updatePayment(payment: Payment): Promise<void> {
+  await putItem(STORE_NAMES.PAYMENTS, normalizePayment(payment))
+  notifyStorageChanged()
+}
+
+export async function deletePayment(id: string): Promise<void> {
+  await deleteItem(STORE_NAMES.PAYMENTS, id)
+  notifyStorageChanged()
+}
+
+export async function clearOsteoData(): Promise<void> {
+  await Promise.all([
+    clearStore(STORE_NAMES.CLIENTS),
+    clearStore(STORE_NAMES.APPOINTMENTS),
+    clearStore(STORE_NAMES.PAYMENTS),
+  ])
+  await saveSettings(defaultSettings)
+  notifyStorageChanged()
+}
+
+export async function getSettings(): Promise<Settings> {
+  try {
+    const stored = await runStore<(Settings & { id: string }) | undefined>(STORE_NAMES.SETTINGS, 'readonly', (store) => store.get('settings'))
+    if (!stored) return defaultSettings
+    const { id: _, ...settings } = stored
+    return { ...defaultSettings, ...settings }
+  } catch {
+    return defaultSettings
+  }
+}
+
+export async function saveSettings(settings: Settings): Promise<void> {
+  await putItem(STORE_NAMES.SETTINGS, { id: 'settings', ...settings })
+  notifyStorageChanged()
+}
+
+export async function searchClients(query: string): Promise<Client[]> {
+  const clients = await getClients()
   const q = query.toLowerCase().trim()
   if (!q) return clients
   return clients.filter(
-    (c) =>
-      c.name.toLowerCase().includes(q) ||
-      c.phone?.toLowerCase().includes(q) ||
-      c.email?.toLowerCase().includes(q)
+    (client) =>
+      client.name.toLowerCase().includes(q) ||
+      client.phone?.toLowerCase().includes(q) ||
+      client.email?.toLowerCase().includes(q)
   )
 }
 
-// Get clients sorted by last visit
-export function getClientsSortedByLastVisit(): Client[] {
-  const clients = getClients()
+export async function getClientsSortedByLastVisit(): Promise<Client[]> {
+  const clients = await getClients()
   return [...clients].sort(
     (a, b) => new Date(b.lastVisit).getTime() - new Date(a.lastVisit).getTime()
   )
 }
 
-// Export/Import for backup
-export function exportData(): string {
+export async function exportData(): Promise<string> {
+  const [clients, appointments, payments, settings] = await Promise.all([
+    getClients(),
+    getAppointments(),
+    getPayments(),
+    getSettings(),
+  ])
+
   return JSON.stringify({
-    clients: getClients(),
-    appointments: getAppointments(),
-    payments: getPayments(),
-    settings: getSettings(),
+    clients,
+    appointments,
+    payments,
+    settings,
     exportDate: new Date().toISOString(),
   }, null, 2)
 }
@@ -204,7 +275,7 @@ function isSettings(value: unknown): value is Settings {
     && (value.gigaChatModel === undefined || typeof value.gigaChatModel === 'string')
 }
 
-export function importData(jsonString: string): boolean {
+export async function importData(jsonString: string): Promise<boolean> {
   try {
     const data: unknown = JSON.parse(jsonString)
 
@@ -226,10 +297,10 @@ export function importData(jsonString: string): boolean {
     if (payments !== undefined && !Array.isArray(payments)) return false
     if (settings !== undefined && !isSettings(settings)) return false
 
-    setClients(Array.isArray(clients) ? clients.map((client) => normalizeClient(client as Client)) : [])
-    setAppointments(Array.isArray(appointments) ? appointments as Appointment[] : [])
-    setPayments(Array.isArray(payments) ? payments.map((payment) => normalizePayment(payment as Payment)) : [])
-    saveSettings(isSettings(settings) ? settings : defaultSettings)
+    await setClients(Array.isArray(clients) ? clients.map((client) => normalizeClient(client as Client)) : [])
+    await setAppointments(Array.isArray(appointments) ? appointments as Appointment[] : [])
+    await setPayments(Array.isArray(payments) ? payments.map((payment) => normalizePayment(payment as Payment)) : [])
+    await saveSettings(isSettings(settings) ? settings : defaultSettings)
 
     return true
   } catch {
@@ -237,7 +308,6 @@ export function importData(jsonString: string): boolean {
   }
 }
 
-// Storage object for components that prefer object syntax
 export const storage = {
   getClients,
   setClients,

@@ -98,8 +98,10 @@ export default function PaymentsPage() {
   })
 
   useEffect(() => {
-    setPayments(storage.getPayments())
-    setClients(storage.getClients())
+    Promise.all([storage.getPayments(), storage.getClients()]).then(([paymentsData, clientsData]) => {
+      setPayments(paymentsData)
+      setClients(clientsData)
+    })
   }, [])
 
   const getClientName = (clientId: string) => {
@@ -139,7 +141,7 @@ export default function PaymentsPage() {
     return { total, debt, cashTotal, cardTotal, count: filteredPayments.length }
   }, [filteredPayments])
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.clientId || !formData.cost) return
 
     const cost = parseFloat(formData.cost) || 0
@@ -162,20 +164,20 @@ export default function PaymentsPage() {
     }
 
     if (editingPayment) {
-      storage.updatePayment(paymentData)
+      await storage.updatePayment(paymentData)
     } else {
-      storage.addPayment(paymentData)
+      await storage.addPayment(paymentData)
     }
 
-    setPayments(storage.getPayments())
+    setPayments(await storage.getPayments())
     resetForm()
     setIsAddDialogOpen(false)
     setEditingPayment(null)
   }
 
-  const handleDelete = (id: string) => {
-    storage.deletePayment(id)
-    setPayments(storage.getPayments())
+  const handleDelete = async (id: string) => {
+    await storage.deletePayment(id)
+    setPayments(await storage.getPayments())
   }
 
   const resetForm = () => {

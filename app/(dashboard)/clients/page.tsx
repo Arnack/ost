@@ -39,7 +39,7 @@ export default function ClientsPage() {
 
   // Load clients on mount
   useEffect(() => {
-    setClients(getClientsSortedByLastVisit())
+    getClientsSortedByLastVisit().then(setClients)
   }, [])
 
   // Filter clients by search
@@ -60,12 +60,12 @@ export default function ClientsPage() {
   }
 
   // Create new client
-  const handleCreateClient = () => {
+  const handleCreateClient = async () => {
     if (!newClientName.trim()) return
 
     const client = createEmptyClient(newClientName.trim())
-    saveClient(client)
-    setClients(getClientsSortedByLastVisit())
+    await saveClient(client)
+    setClients(await getClientsSortedByLastVisit())
     setNewClientName('')
     setIsNewClientOpen(false)
     router.push(`/clients/${client.id}`)

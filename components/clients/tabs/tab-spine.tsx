@@ -338,7 +338,7 @@ export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
                         {spineSegments.map((segment, index) => {
                           const status = getSegmentStatus(segment.id)
                           const isAffected = status !== 'normal'
-                          const labelX = index % 2 === 0 ? 61 : 73
+                          const labelX = index % 2 === 0 ? 12 : 76
                           return (
                             <g key={segment.id} onClick={() => toggleSegmentStatus(segment.id)} className="cursor-pointer">
                               <rect
@@ -360,21 +360,21 @@ export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
                               />
                               <rect
                                 x={labelX}
-                                y={segment.y - 2.5}
-                                width="10"
-                                height="5"
-                                rx="1.5"
+                                y={segment.y - 3}
+                                width="12"
+                                height="6"
+                                rx="1.8"
                                 className={cn(
-                                  'fill-background/80 stroke-border stroke-[0.25] transition-colors',
+                                  'fill-background/95 stroke-foreground stroke-[0.3] transition-colors',
                                   isAffected && 'fill-destructive stroke-destructive'
                                 )}
                               />
                               <text
-                                x={labelX + 5}
-                                y={segment.y + 1.1}
+                                x={labelX + 6}
+                                y={segment.y + 1.3}
                                 textAnchor="middle"
                                 className={cn(
-                                  'select-none text-[3px] font-semibold fill-foreground transition-colors',
+                                  'select-none text-[3.5px] font-bold fill-foreground transition-colors',
                                   isAffected && 'fill-destructive-foreground'
                                 )}
                               >
@@ -400,7 +400,7 @@ export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
                         {sideSpineHotspots.map((segment, index) => {
                           const status = getSegmentStatus(segment.id)
                           const isAffected = status !== 'normal'
-                          const labelX = index % 2 === 0 ? 60 : 71
+                          const labelX = 73
                           return (
                             <g key={segment.id} onClick={() => toggleSegmentStatus(segment.id)} className="cursor-pointer">
                               <circle
@@ -414,21 +414,21 @@ export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
                               />
                               <rect
                                 x={labelX}
-                                y={segment.y - 2.4}
-                                width="9"
-                                height="4.8"
-                                rx="1.4"
+                                y={segment.y - 3}
+                                width="12"
+                                height="6"
+                                rx="1.8"
                                 className={cn(
-                                  'fill-background/80 stroke-border stroke-[0.25] transition-colors',
+                                  'fill-background/95 stroke-foreground stroke-[0.3] transition-colors',
                                   isAffected && 'fill-destructive stroke-destructive'
                                 )}
                               />
                               <text
-                                x={labelX + 4.5}
-                                y={segment.y + 1}
+                                x={labelX + 6}
+                                y={segment.y + 1.3}
                                 textAnchor="middle"
                                 className={cn(
-                                  'select-none text-[3px] font-semibold fill-muted-foreground transition-colors',
+                                  'select-none text-[3.5px] font-bold fill-foreground transition-colors',
                                   isAffected && 'fill-destructive-foreground'
                                 )}
                               >

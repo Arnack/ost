@@ -45,29 +45,29 @@ export default function SettingsPage() {
     payments: 0,
   })
 
-  const refreshDataCounts = () => {
-    const clients = getClients()
+  const refreshDataCounts = async () => {
+    const [clients, appointments, payments] = await Promise.all([getClients(), getAppointments(), getPayments()])
     setDataCounts({
       clients: clients.length,
       visits: clients.reduce((acc, client) => acc + client.visits.length, 0),
-      appointments: getAppointments().length,
-      payments: getPayments().length,
+      appointments: appointments.length,
+      payments: payments.length,
     })
   }
 
   useEffect(() => {
-    setSettings(getSettings())
+    getSettings().then(setSettings)
     refreshDataCounts()
   }, [])
 
-  const handleSave = () => {
-    saveSettings(settings)
+  const handleSave = async () => {
+    await saveSettings(settings)
     setHasChanges(false)
     toast.success('Настройки сохранены')
   }
 
-  const handleExport = () => {
-    const data = exportData()
+  const handleExport = async () => {
+    const data = await exportData()
     const blob = new Blob([data], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -85,11 +85,11 @@ export default function SettingsPage() {
     if (!file) return
 
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const content = e.target?.result as string
-      if (importData(content)) {
+      if (await importData(content)) {
         toast.success('Данные импортированы')
-        setSettings(getSettings())
+        setSettings(await getSettings())
         refreshDataCounts()
       } else {
         toast.error('Ошибка импорта данных')
@@ -99,10 +99,10 @@ export default function SettingsPage() {
     event.target.value = ''
   }
 
-  const handleClearData = () => {
-    clearOsteoData()
+  const handleClearData = async () => {
+    await clearOsteoData()
     toast.success('Все данные удалены')
-    setSettings(getSettings())
+    setSettings(await getSettings())
     refreshDataCounts()
   }
 

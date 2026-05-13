@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Camera, Upload, X, FileText, Calendar } from 'lucide-react'
 import { format, parseISO, differenceInYears } from 'date-fns'
 import { ru } from 'date-fns/locale'
@@ -26,10 +26,50 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
   const [activeVoiceField, setActiveVoiceField] = useState<'name' | 'phone' | 'email' | null>(null)
   const [interimText, setInterimText] = useState('')
+  const [birthDateInput, setBirthDateInput] = useState('')
 
   const age = client.birthDate
     ? differenceInYears(new Date(), parseISO(client.birthDate))
     : null
+
+  const formatBirthDateInput = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 8)
+    if (digits.length <= 2) return digits
+    if (digits.length <= 4) return `${digits.slice(0, 2)}.${digits.slice(2)}`
+    return `${digits.slice(0, 2)}.${digits.slice(2, 4)}.${digits.slice(4)}`
+  }
+
+  const birthDateValue = client.birthDate
+    ? format(parseISO(client.birthDate), 'dd.MM.yyyy')
+    : ''
+
+  useEffect(() => {
+    setBirthDateInput(birthDateValue)
+  }, [birthDateValue])
+
+  const handleBirthDateChange = (value: string) => {
+    const formatted = formatBirthDateInput(value)
+    setBirthDateInput(formatted)
+    const digits = formatted.replace(/\D/g, '')
+
+    if (digits.length === 0) {
+      onUpdate({ birthDate: undefined })
+      return
+    }
+
+    if (digits.length !== 8) return
+
+    const day = Number(digits.slice(0, 2))
+    const month = Number(digits.slice(2, 4))
+    const year = Number(digits.slice(4, 8))
+    const date = new Date(year, month - 1, day)
+    const isValid =
+      date.getFullYear() === year &&
+      date.getMonth() === month - 1 &&
+      date.getDate() === day
+
+    onUpdate({ birthDate: isValid ? date.toISOString() : undefined })
+  }
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -149,11 +189,10 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
                 <FieldLabel>Дата рождения</FieldLabel>
                 <div className="flex items-center gap-2">
                   <Input
-                    type="date"
-                    value={client.birthDate?.split('T')[0] || ''}
-                    onChange={(e) =>
-                      onUpdate({ birthDate: e.target.value ? new Date(e.target.value).toISOString() : undefined })
-                    }
+                    inputMode="numeric"
+                    value={birthDateInput}
+                    onChange={(e) => handleBirthDateChange(e.target.value)}
+                    placeholder="ДД.ММ.ГГГГ"
                     className="h-11"
                   />
                   {age !== null && (

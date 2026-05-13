@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Save, Trash2, FileDown } from 'lucide-react'
+import { ArrowLeft, Save, Trash2, FileDown, Mic, Square } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { TabInfo } from '@/components/clients/tabs/tab-info'
 import { TabAnamnesis } from '@/components/clients/tabs/tab-anamnesis'
 import { TabSpine } from '@/components/clients/tabs/tab-spine'
@@ -51,22 +58,28 @@ export default function ClientCardPage() {
   const [activeTab, setActiveTab] = useState('info')
   const [hasChanges, setHasChanges] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [audioDialogOpen, setAudioDialogOpen] = useState(false)
+  const [isRecordingAudio, setIsRecordingAudio] = useState(false)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const audioStartRef = useRef<number>(0)
 
   // Load client data
   useEffect(() => {
-    const data = getClient(clientId)
-    if (data) {
-      setClient(data)
-      // Get the latest visit or create a new one
-      if (data.visits.length > 0) {
-        setCurrentVisit(data.visits[data.visits.length - 1])
+    getClient(clientId).then((data) => {
+      if (data) {
+        setClient(data)
+        // Get the latest visit or create a new one
+        if (data.visits.length > 0) {
+          setCurrentVisit(data.visits[data.visits.length - 1])
+        } else {
+          const newVisit = createEmptyVisit()
+          setCurrentVisit(newVisit)
+        }
       } else {
-        const newVisit = createEmptyVisit()
-        setCurrentVisit(newVisit)
+        router.push('/clients')
       }
-    } else {
-      router.push('/clients')
-    }
+    })
   }, [clientId, router])
 
   // Update client data
@@ -104,11 +117,11 @@ export default function ClientCardPage() {
   }, [])
 
   // Delete a specific visit
-  const handleDeleteVisit = useCallback((visitId: string) => {
+  const handleDeleteVisit = useCallback(async (visitId: string) => {
     if (!client) return
     const updatedVisits = client.visits.filter((v) => v.id !== visitId)
     const updatedClient: Client = { ...client, visits: updatedVisits }
-    saveClient(updatedClient)
+    await saveClient(updatedClient)
     setClient(updatedClient)
     // If current visit was deleted, switch to last remaining or create new
     if (currentVisit?.id === visitId) {
@@ -122,7 +135,7 @@ export default function ClientCardPage() {
   }, [client, currentVisit])
 
   // Save all changes
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!client) return
 
     let updatedVisits = [...client.visits]
@@ -160,22 +173,22 @@ export default function ClientCardPage() {
       lastVisit: new Date().toISOString(),
     }
 
-    saveClient(updatedClient)
+    await saveClient(updatedClient)
     setClient(updatedClient)
     setHasChanges(false)
     toast.success('Изменения сохранены')
   }, [client, currentVisit])
 
   // Delete client
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!client) return
-    deleteClient(client.id)
+    await deleteClient(client.id)
     toast.success('Клиент удалён')
     router.push('/clients')
   }
 
   // Start new visit
-  const handleNewVisit = useCallback(() => {
+  const handleNewVisit = useCallback(async () => {
     // Save current visit first
     if (client && currentVisit) {
       const visitIndex = client.visits.findIndex((v) => v.id === currentVisit.id)
@@ -195,7 +208,7 @@ export default function ClientCardPage() {
         lastVisit: new Date().toISOString(),
       }
 
-      saveClient(updatedClient)
+      await saveClient(updatedClient)
       setClient(updatedClient)
       setCurrentVisit(newVisit)
       setHasChanges(false)
@@ -216,6 +229,74 @@ export default function ClientCardPage() {
       visit.id === currentVisit.id ? currentVisit : visit
     )
   }, [client, currentVisit])
+
+  const sortedVisits = useMemo(() => {
+    return [...visitsWithCurrent].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  }, [visitsWithCurrent])
+
+  const blobToDataUrl = (blob: Blob) => {
+    return new Promise<string>((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.readAsDataURL(blob)
+    })
+  }
+
+  const handleToggleAudioRecording = useCallback(async () => {
+    if (isRecordingAudio) {
+      mediaRecorderRef.current?.stop()
+      return
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      toast.error('Запись аудио не поддерживается в этом браузере')
+      return
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      audioChunksRef.current = []
+      audioStartRef.current = Date.now()
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data)
+      }
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop())
+        const type = recorder.mimeType || 'audio/webm'
+        const blob = new Blob(audioChunksRef.current, { type })
+        const url = await blobToDataUrl(blob)
+        const duration = Math.round((Date.now() - audioStartRef.current) / 1000)
+        updateClient({
+          audioNotes: [
+            ...(client?.audioNotes || []),
+            {
+              id: crypto.randomUUID(),
+              url,
+              date: new Date().toISOString(),
+              type,
+              duration,
+            },
+          ],
+        })
+        setIsRecordingAudio(false)
+        toast.success('Аудиозаметка добавлена')
+      }
+
+      mediaRecorderRef.current = recorder
+      recorder.start()
+      setIsRecordingAudio(true)
+      setAudioDialogOpen(true)
+    } catch {
+      toast.error('Не удалось получить доступ к микрофону')
+    }
+  }, [client?.audioNotes, isRecordingAudio, updateClient])
+
+  const handleDeleteAudioNote = useCallback((noteId: string) => {
+    if (!client) return
+    updateClient({ audioNotes: client.audioNotes.filter((note) => note.id !== noteId) })
+  }, [client, updateClient])
 
   const handleSelectVisit = useCallback((visitId: string) => {
     if (!client) return
@@ -295,6 +376,13 @@ export default function ClientCardPage() {
           </Button>
           <Button
             variant="outline"
+            onClick={() => setAudioDialogOpen(true)}
+          >
+            <Mic className="mr-2 h-4 w-4" />
+            Аудио {client.audioNotes.length}
+          </Button>
+          <Button
+            variant="outline"
             onClick={() => setDeleteDialogOpen(true)}
             className="text-destructive hover:text-destructive"
           >
@@ -307,6 +395,62 @@ export default function ClientCardPage() {
           </Button>
         </div>
       </div>
+
+      <Dialog open={audioDialogOpen} onOpenChange={setAudioDialogOpen}>
+        <DialogContent className="max-h-[85vh] overflow-hidden sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Аудиозаметки</DialogTitle>
+            <DialogDescription>
+              Записи сохраняются в карточке клиента после нажатия «Сохранить».
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 overflow-hidden">
+            <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3">
+              <div>
+                <p className="text-sm font-medium">
+                  {isRecordingAudio ? 'Идёт запись...' : 'Новая аудиозаметка'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isRecordingAudio ? 'Нажмите «Стоп», чтобы сохранить запись в список.' : 'Нажмите «Записать» и разрешите доступ к микрофону.'}
+                </p>
+              </div>
+              <Button
+                variant={isRecordingAudio ? 'destructive' : 'default'}
+                onClick={handleToggleAudioRecording}
+              >
+                {isRecordingAudio ? <Square className="mr-2 h-4 w-4" /> : <Mic className="mr-2 h-4 w-4" />}
+                {isRecordingAudio ? 'Стоп' : 'Записать'}
+              </Button>
+            </div>
+
+            {client.audioNotes.length === 0 ? (
+              <div className="rounded-lg border border-dashed p-6 text-center">
+                <p className="text-sm text-muted-foreground">Аудиозаметок пока нет</p>
+              </div>
+            ) : (
+              <div className="max-h-[50vh] space-y-2 overflow-y-auto pr-1">
+                {[...client.audioNotes].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((note, index) => (
+                  <div key={note.id} className="rounded-lg border bg-background p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-medium">Аудиозаметка {client.audioNotes.length - index}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(note.date).toLocaleString('ru-RU')}
+                          {note.duration ? ` · ${note.duration} сек` : ''}
+                        </p>
+                      </div>
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteAudioNote(note.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <audio controls src={note.url} className="h-9 w-full" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Tabs */}
       <Tabs
@@ -383,6 +527,31 @@ export default function ClientCardPage() {
             )}
           </TabsContent>
         </div>
+
+        {sortedVisits.length > 0 && currentVisit && (
+          <div className="border-t bg-card px-4 py-3">
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {sortedVisits.map((visit, index) => {
+                const isActive = visit.id === currentVisit.id
+                return (
+                  <button
+                    key={visit.id}
+                    type="button"
+                    onClick={() => handleSelectVisit(visit.id)}
+                    className={`shrink-0 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                      isActive ? 'border-primary bg-primary text-primary-foreground' : 'bg-background hover:bg-accent'
+                    }`}
+                  >
+                    <span className="block font-medium">Приём {sortedVisits.length - index}</span>
+                    <span className={isActive ? 'text-primary-foreground/80' : 'text-muted-foreground'}>
+                      {new Date(visit.date).toLocaleDateString('ru-RU')}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </Tabs>
 
       {/* Delete confirmation dialog */}

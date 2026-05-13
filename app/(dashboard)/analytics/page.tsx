@@ -83,9 +83,11 @@ export default function AnalyticsPage() {
   const [isHistoryAnalyzing, setIsHistoryAnalyzing] = useState(false)
 
   useEffect(() => {
-    setClients(storage.getClients())
-    setAppointments(storage.getAppointments())
-    setPayments(storage.getPayments())
+    Promise.all([storage.getClients(), storage.getAppointments(), storage.getPayments()]).then(([clientsData, appointmentsData, paymentsData]) => {
+      setClients(clientsData)
+      setAppointments(appointmentsData)
+      setPayments(paymentsData)
+    })
   }, [])
 
   const dateRange = useMemo(() => {

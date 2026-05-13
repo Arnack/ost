@@ -1,23 +1,31 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getTodayAppointments } from '@/lib/storage'
+import { STORAGE_CHANGED_EVENT, getTodayAppointments } from '@/lib/storage'
 
 export function useTodayAppointmentsCount(): number {
   const [count, setCount] = useState(0)
 
   useEffect(() => {
-    const appointments = getTodayAppointments()
-    setCount(appointments.filter((a) => a.status === 'scheduled').length)
+    const refresh = () => {
+      getTodayAppointments().then((appointments) => {
+        setCount(appointments.filter((a) => a.status === 'scheduled').length)
+      })
+    }
+
+    refresh()
 
     // Listen for storage changes
     const handleStorage = () => {
-      const updated = getTodayAppointments()
-      setCount(updated.filter((a) => a.status === 'scheduled').length)
+      refresh()
     }
 
+    window.addEventListener(STORAGE_CHANGED_EVENT, handleStorage)
     window.addEventListener('storage', handleStorage)
-    return () => window.removeEventListener('storage', handleStorage)
+    return () => {
+      window.removeEventListener(STORAGE_CHANGED_EVENT, handleStorage)
+      window.removeEventListener('storage', handleStorage)
+    }
   }, [])
 
   return count

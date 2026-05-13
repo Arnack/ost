@@ -16,6 +16,15 @@ export interface ClientFile {
   date: string
 }
 
+export interface AudioNote {
+  id: string
+  url: string
+  date: string
+  name?: string
+  type: string
+  duration?: number
+}
+
 export interface Anamnesis {
   symptoms: string
   firstSymptoms: string
@@ -204,6 +213,7 @@ export interface Client {
   lastVisit: string
   photos: Photo[]
   files: ClientFile[]
+  audioNotes: AudioNote[]
   anamnesis: Anamnesis
   visits: Visit[]
   payments: Payment[]
@@ -309,6 +319,7 @@ export function createEmptyClient(name: string): Client {
     status: 'active',
     photos: [],
     files: [],
+    audioNotes: [],
     anamnesis: emptyAnamnesis,
     visits: [],
     payments: [],
@@ -373,6 +384,7 @@ export function normalizeClient(client: Client): Client {
     ...client,
     photos: client.photos || [],
     files: client.files || [],
+    audioNotes: client.audioNotes || [],
     anamnesis: {
       ...emptyAnamnesis,
       ...client.anamnesis,

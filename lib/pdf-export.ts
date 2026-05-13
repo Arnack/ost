@@ -74,7 +74,7 @@ function openPrintDocument(title: string, body: string): void {
   printWindow.document.close()
 }
 
-export function exportClientToPDF(client: Client): void {
+export async function exportClientToPDF(client: Client): Promise<void> {
   const anamnesis = client.anamnesis
   const anamnesisFields = [
     { label: 'Симптомы', value: anamnesis.symptoms },
@@ -102,7 +102,7 @@ export function exportClientToPDF(client: Client): void {
   const latestVisit = client.visits[client.visits.length - 1]
   const clientPayments = [
     ...client.payments,
-    ...getPayments().filter((payment) => payment.clientId === client.id && !client.payments.some((item) => item.id === payment.id)),
+    ...(await getPayments()).filter((payment) => payment.clientId === client.id && !client.payments.some((item) => item.id === payment.id)),
   ]
   const paymentsRows = clientPayments.map((payment, index) => `
     <tr>
