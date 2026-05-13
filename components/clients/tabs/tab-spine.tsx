@@ -18,44 +18,33 @@ interface TabSpineProps {
 }
 
 const spineSegments = [
-  { id: 'C1', name: 'C1 (Атлант)', y: 7, x: 50 },
-  { id: 'C2', name: 'C2 (Аксис)', y: 10, x: 50 },
-  { id: 'C3', name: 'C3', y: 13, x: 50 },
-  { id: 'C4', name: 'C4', y: 16, x: 50 },
-  { id: 'C5', name: 'C5', y: 19, x: 50 },
-  { id: 'C6', name: 'C6', y: 22, x: 50 },
-  { id: 'C7', name: 'C7', y: 25, x: 50 },
-  { id: 'T1', name: 'T1', y: 29, x: 50 },
-  { id: 'T2', name: 'T2', y: 32, x: 50 },
-  { id: 'T3', name: 'T3', y: 35, x: 50 },
-  { id: 'T4', name: 'T4', y: 38, x: 50 },
-  { id: 'T5', name: 'T5', y: 41, x: 50 },
-  { id: 'T6', name: 'T6', y: 44, x: 50 },
-  { id: 'T7', name: 'T7', y: 47, x: 50 },
-  { id: 'T8', name: 'T8', y: 50, x: 50 },
-  { id: 'T9', name: 'T9', y: 53, x: 50 },
-  { id: 'T10', name: 'T10', y: 56, x: 50 },
-  { id: 'T11', name: 'T11', y: 59, x: 50 },
-  { id: 'T12', name: 'T12', y: 62, x: 50 },
-  { id: 'L1', name: 'L1', y: 67, x: 50 },
-  { id: 'L2', name: 'L2', y: 71, x: 50 },
-  { id: 'L3', name: 'L3', y: 75, x: 50 },
-  { id: 'L4', name: 'L4', y: 79, x: 50 },
-  { id: 'L5', name: 'L5', y: 83, x: 50 },
-  { id: 'S1', name: 'S1', y: 89, x: 50 },
-  { id: 'S2', name: 'S2', y: 93, x: 50 },
+  { id: 'C1', name: 'C1 (Атлант)', front: { x: 340, y: 35.5, width: 108, height: 11 }, side: { x: 286, y: 35, width: 72, height: 10 } },
+  { id: 'C2', name: 'C2 (Аксис)', front: { x: 340, y: 55.5, width: 100, height: 17 }, side: { x: 282, y: 56, width: 68, height: 18 } },
+  { id: 'C3', name: 'C3', front: { x: 340, y: 78.5, width: 96, height: 17 }, side: { x: 279, y: 80.5, width: 66, height: 17 } },
+  { id: 'C4', name: 'C4', front: { x: 340, y: 101.5, width: 96, height: 17 }, side: { x: 277, y: 103.5, width: 66, height: 17 } },
+  { id: 'C5', name: 'C5', front: { x: 340, y: 124.5, width: 96, height: 17 }, side: { x: 275, y: 126.5, width: 66, height: 17 } },
+  { id: 'C6', name: 'C6', front: { x: 340, y: 147.5, width: 96, height: 17 }, side: { x: 273, y: 149.5, width: 66, height: 17 } },
+  { id: 'C7', name: 'C7', front: { x: 340, y: 171, width: 98, height: 18 }, side: { x: 272, y: 173, width: 68, height: 18 } },
+  { id: 'T1', name: 'T1', front: { x: 340, y: 196.5, width: 100, height: 19 }, side: { x: 269, y: 199, width: 70, height: 20 } },
+  { id: 'T2', name: 'T2', front: { x: 340, y: 222.5, width: 102, height: 19 }, side: { x: 265, y: 226, width: 70, height: 20 } },
+  { id: 'T3', name: 'T3', front: { x: 340, y: 248.5, width: 104, height: 19 }, side: { x: 261, y: 253, width: 70, height: 20 } },
+  { id: 'T4', name: 'T4', front: { x: 340, y: 275, width: 106, height: 20 }, side: { x: 257, y: 280, width: 70, height: 20 } },
+  { id: 'T5', name: 'T5', front: { x: 340, y: 302, width: 108, height: 20 }, side: { x: 255, y: 307, width: 70, height: 20 } },
+  { id: 'T6', name: 'T6', front: { x: 340, y: 329, width: 108, height: 20 }, side: { x: 255, y: 334, width: 70, height: 20 } },
+  { id: 'T7', name: 'T7', front: { x: 340, y: 356, width: 108, height: 20 }, side: { x: 255, y: 361, width: 70, height: 20 } },
+  { id: 'T8', name: 'T8', front: { x: 340, y: 383.5, width: 110, height: 21 }, side: { x: 257, y: 388.5, width: 70, height: 21 } },
+  { id: 'T9', name: 'T9', front: { x: 340, y: 412.5, width: 112, height: 21 }, side: { x: 259, y: 416.5, width: 70, height: 21 } },
+  { id: 'T10', name: 'T10', front: { x: 340, y: 441.5, width: 114, height: 21 }, side: { x: 263, y: 444.5, width: 70, height: 21 } },
+  { id: 'T11', name: 'T11', front: { x: 340, y: 471, width: 116, height: 22 }, side: { x: 267, y: 473.5, width: 70, height: 21 } },
+  { id: 'T12', name: 'T12', front: { x: 340, y: 501, width: 118, height: 22 }, side: { x: 272, y: 503, width: 72, height: 22 } },
+  { id: 'L1', name: 'L1', front: { x: 340, y: 532.5, width: 120, height: 25 }, side: { x: 279, y: 534, width: 78, height: 24 } },
+  { id: 'L2', name: 'L2', front: { x: 340, y: 567, width: 124, height: 26 }, side: { x: 284, y: 567.5, width: 80, height: 25 } },
+  { id: 'L3', name: 'L3', front: { x: 340, y: 602.5, width: 128, height: 27 }, side: { x: 289, y: 602, width: 82, height: 26 } },
+  { id: 'L4', name: 'L4', front: { x: 340, y: 638.5, width: 130, height: 27 }, side: { x: 288, y: 637, width: 84, height: 26 } },
+  { id: 'L5', name: 'L5', front: { x: 340, y: 676, width: 132, height: 28 }, side: { x: 285, y: 672, width: 86, height: 26 } },
+  { id: 'S1', name: 'S1', front: { x: 340, y: 706, width: 148, height: 16 }, side: { x: 282, y: 710, width: 86, height: 16 } },
+  { id: 'S2', name: 'S2', front: { x: 340, y: 722, width: 108, height: 16 }, side: { x: 280, y: 726, width: 54, height: 16 } },
 ]
-
-const sideSpineHotspots = spineSegments.map((segment) => ({
-  ...segment,
-  x: segment.id.startsWith('C')
-    ? 43
-    : segment.id.startsWith('T')
-      ? 36
-      : segment.id.startsWith('L')
-        ? 45
-        : 42,
-}))
 
 const statusColors = {
   normal: 'bg-success',
@@ -327,54 +316,50 @@ export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
                 >
                   <div className="rounded-lg bg-background/80 p-3">
                     <p className="mb-2 text-center text-sm font-medium">Вид спереди</p>
-                    <div className="relative h-[560px]">
-                      <img
-                        src="/spine_front_view.svg"
-                        alt="Позвоночник спереди"
-                        className="h-full w-full object-contain"
-                        draggable={false}
-                      />
-                      <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid meet">
+                    <div className="relative h-[700px]">
+                      <svg viewBox="170 0 340 782" className="h-full w-full" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Позвоночник спереди">
+                        <image href="/spine_front_view.svg" x="0" y="0" width="680" height="782" />
                         {spineSegments.map((segment, index) => {
                           const status = getSegmentStatus(segment.id)
                           const isAffected = status !== 'normal'
-                          const labelX = index % 2 === 0 ? 12 : 76
+                          const hotspot = segment.front
+                          const labelX = index % 2 === 0 ? 204 : 434
                           return (
                             <g key={segment.id} onClick={() => toggleSegmentStatus(segment.id)} className="cursor-pointer">
                               <rect
-                                x={segment.x - 6}
-                                y={segment.y - 1.5}
-                                width="12"
-                                height="3"
-                                rx="1"
+                                x={hotspot.x - hotspot.width / 2}
+                                y={hotspot.y - hotspot.height / 2}
+                                width={hotspot.width}
+                                height={hotspot.height}
+                                rx="5"
                                 className={cn(
-                                  'stroke-background stroke-[0.35] transition-colors',
+                                  'stroke-background stroke-[2] transition-colors',
                                   isAffected ? 'fill-warning/90' : 'fill-transparent'
                                 )}
                               />
                               <circle
-                                cx={segment.x}
-                                cy={segment.y}
-                                r="4"
+                                cx={hotspot.x}
+                                cy={hotspot.y}
+                                r="18"
                                 className={cn('fill-transparent transition-colors', isAffected && 'fill-destructive/20')}
                               />
                               <rect
                                 x={labelX}
-                                y={segment.y - 3}
-                                width="12"
-                                height="6"
-                                rx="1.8"
+                                y={hotspot.y - 13}
+                                width="42"
+                                height="26"
+                                rx="7"
                                 className={cn(
-                                  'fill-background/95 stroke-foreground stroke-[0.3] transition-colors',
+                                  'fill-background/95 stroke-foreground stroke-[1.5] transition-colors',
                                   isAffected && 'fill-destructive stroke-destructive'
                                 )}
                               />
                               <text
-                                x={labelX + 6}
-                                y={segment.y + 1.3}
+                                x={labelX + 21}
+                                y={hotspot.y + 5}
                                 textAnchor="middle"
                                 className={cn(
-                                  'select-none text-[3.5px] font-bold fill-foreground transition-colors',
+                                  'select-none text-[15px] font-bold fill-foreground transition-colors',
                                   isAffected && 'fill-destructive-foreground'
                                 )}
                               >
@@ -389,46 +374,50 @@ export function TabSpine({ visit, visits = [visit], onUpdate }: TabSpineProps) {
 
                   <div className="rounded-lg bg-background/80 p-3">
                     <p className="mb-2 text-center text-sm font-medium">Вид сбоку</p>
-                    <div className="relative h-[560px]">
-                      <img
-                        src="/spine_side_view.svg"
-                        alt="Позвоночник сбоку"
-                        className="h-full w-full object-contain"
-                        draggable={false}
-                      />
-                      <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid meet">
-                        {sideSpineHotspots.map((segment, index) => {
+                    <div className="relative h-[700px]">
+                      <svg viewBox="150 0 340 784" className="h-full w-full" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Позвоночник сбоку">
+                        <image href="/spine_side_view.svg" x="0" y="0" width="680" height="784" />
+                        {spineSegments.map((segment) => {
                           const status = getSegmentStatus(segment.id)
                           const isAffected = status !== 'normal'
-                          const labelX = 73
+                          const hotspot = segment.side
+                          const labelX = 392
                           return (
                             <g key={segment.id} onClick={() => toggleSegmentStatus(segment.id)} className="cursor-pointer">
-                              <circle
-                                cx={segment.x}
-                                cy={segment.y}
-                                r="3.4"
+                              <rect
+                                x={hotspot.x - hotspot.width / 2}
+                                y={hotspot.y - hotspot.height / 2}
+                                width={hotspot.width}
+                                height={hotspot.height}
+                                rx="6"
                                 className={cn(
-                                  'stroke-background stroke-[0.35] transition-colors',
-                                  isAffected ? 'fill-destructive/85' : 'fill-transparent'
+                                  'stroke-background stroke-[2] transition-colors',
+                                  isAffected ? 'fill-warning/90' : 'fill-transparent'
                                 )}
+                              />
+                              <circle
+                                cx={hotspot.x}
+                                cy={hotspot.y}
+                                r="18"
+                                className={cn('fill-transparent transition-colors', isAffected && 'fill-destructive/20')}
                               />
                               <rect
                                 x={labelX}
-                                y={segment.y - 3}
-                                width="12"
-                                height="6"
-                                rx="1.8"
+                                y={hotspot.y - 13}
+                                width="42"
+                                height="26"
+                                rx="7"
                                 className={cn(
-                                  'fill-background/95 stroke-foreground stroke-[0.3] transition-colors',
+                                  'fill-background/95 stroke-foreground stroke-[1.5] transition-colors',
                                   isAffected && 'fill-destructive stroke-destructive'
                                 )}
                               />
                               <text
-                                x={labelX + 6}
-                                y={segment.y + 1.3}
+                                x={labelX + 21}
+                                y={hotspot.y + 5}
                                 textAnchor="middle"
                                 className={cn(
-                                  'select-none text-[3.5px] font-bold fill-foreground transition-colors',
+                                  'select-none text-[15px] font-bold fill-foreground transition-colors',
                                   isAffected && 'fill-destructive-foreground'
                                 )}
                               >
