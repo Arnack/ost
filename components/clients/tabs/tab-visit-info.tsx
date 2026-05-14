@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { Separator } from '@/components/ui/separator'
 import { VoiceMicButton } from '@/components/ui/voice-mic-button'
+import { MarkdownViewer } from '@/components/ui/markdown-viewer'
 import { isVoiceSupported, startVoiceInput, stopVoiceInput } from '@/lib/voice'
 import { analyzeVisit } from '@/lib/ai'
 import type { Visit, Client } from '@/lib/types'
@@ -199,11 +200,10 @@ export function TabVisitInfo({ visit, client, onUpdate, onUpdateVisit, onNewVisi
           </CardHeader>
           <CardContent>
             {visit.aiSummary ? (
-              <div className="prose prose-sm max-w-none">
-                <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg whitespace-pre-wrap">
-                  {visit.aiSummary}
-                </div>
-              </div>
+              <MarkdownViewer
+                content={visit.aiSummary}
+                className="p-4 bg-primary/5 border border-primary/20 rounded-lg"
+              />
             ) : (
               <p className="text-muted-foreground text-center py-4">
                 Нажмите «Проанализировать» для AI-анализа данных визита

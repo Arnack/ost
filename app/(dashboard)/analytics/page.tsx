@@ -50,6 +50,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { MarkdownViewer } from "@/components/ui/markdown-viewer"
 import { storage } from "@/lib/storage"
 import type { Client, Appointment, Payment } from "@/lib/types"
 import { analyzeClientHistory } from "@/lib/ai"
@@ -818,9 +819,10 @@ export default function AnalyticsPage() {
                   </Button>
                 </div>
                 {historyAnalysis ? (
-                  <div className="whitespace-pre-wrap rounded-lg bg-primary/5 p-4 text-sm">
-                    {historyAnalysis}
-                  </div>
+                  <MarkdownViewer
+                    content={historyAnalysis}
+                    className="rounded-lg bg-primary/5 p-4"
+                  />
                 ) : (
                   <p className="text-sm text-muted-foreground">
                     Нажмите кнопку, чтобы получить AI-анализ полной истории клиента.

@@ -1,84 +1,82 @@
 import { NextResponse } from 'next/server'
+import { GigaChat } from 'gigachat'
+import { Agent } from 'node:https'
+
+export const runtime = 'nodejs'
+
+function getErrorDetails(error: unknown): { message: string; status: number } {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const response = (error as { response?: { status?: number; data?: unknown } }).response
+    const data = response?.data
+
+    if (typeof data === 'string' && data.trim()) {
+      return { message: data, status: response?.status || 500 }
+    }
+
+    if (data && typeof data === 'object') {
+      const errorData = data as { message?: string; error?: string; error_description?: string }
+      return {
+        message: errorData.message || errorData.error_description || errorData.error || 'Ошибка GigaChat API',
+        status: response?.status || 500,
+      }
+    }
+
+    return { message: 'Ошибка GigaChat API', status: response?.status || 500 }
+  }
+
+  if (error instanceof Error && error.message) {
+    return { message: error.message, status: 500 }
+  }
+
+  return { message: 'Внутренняя ошибка сервера', status: 500 }
+}
 
 export async function POST(request: Request) {
   try {
     const { prompt, apiKey, model } = await request.json()
+    const credentials = typeof apiKey === 'string' ? apiKey.trim().replace(/^Basic\s+/i, '') : ''
+    const selectedModel = model || 'GigaChat'
 
-    if (!apiKey) {
+    if (!credentials) {
       return NextResponse.json(
         { error: 'Ключ GigaChat не предоставлен' },
         { status: 400 }
       )
     }
 
-    const tokenResponse = await fetch('https://ngw.devices.sberbank.ru:9443/api/v2/oauth', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-        'Authorization': `Basic ${apiKey}`,
-        'RqUID': crypto.randomUUID(),
-      },
-      body: new URLSearchParams({ scope: 'GIGACHAT_API_PERS' }).toString(),
+    const httpsAgent = new Agent({
+      rejectUnauthorized: false,
     })
 
-    if (!tokenResponse.ok) {
-      const errorData = await tokenResponse.json().catch(() => ({}))
-      console.error('[v0] GigaChat token error response:', errorData)
-      return NextResponse.json(
-        { error: 'Ошибка авторизации GigaChat' },
-        { status: tokenResponse.status }
-      )
-    }
-
-    const tokenData = await tokenResponse.json()
-    const accessToken = tokenData.access_token
-
-    if (!accessToken) {
-      return NextResponse.json(
-        { error: 'GigaChat не вернул access token' },
-        { status: 502 }
-      )
-    }
-
-    const response = await fetch('https://gigachat.devices.sberbank.ru/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({
-        model: model || 'GigaChat',
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: 0.2,
-        max_tokens: 2048,
-      }),
+    const client = new GigaChat({
+      credentials,
+      scope: 'GIGACHAT_API_PERS',
+      model: selectedModel,
+      timeout: 600,
+      httpsAgent,
     })
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      console.error('[v0] GigaChat API error response:', errorData)
-      return NextResponse.json(
-        { error: 'Ошибка GigaChat API' },
-        { status: response.status }
-      )
-    }
-
-    const data = await response.json()
+    const data = await client.chat({
+      model: selectedModel,
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: 0.2,
+      max_tokens: 2048,
+    })
     const analysis = data.choices?.[0]?.message?.content || 'Не удалось получить ответ'
 
     return NextResponse.json({ analysis })
   } catch (error) {
     console.error('[v0] AI analyze error:', error)
+    const { message, status } = getErrorDetails(error)
+
     return NextResponse.json(
-      { error: 'Внутренняя ошибка сервера' },
-      { status: 500 }
+      { error: message },
+      { status }
     )
   }
 }
