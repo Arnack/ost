@@ -7,13 +7,6 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import type { Visit, NeuroTest } from '@/lib/types'
 
 interface TabNeuroTestsProps {
@@ -215,18 +208,26 @@ export function TabNeuroTests({ visit, allVisits, onUpdate }: TabNeuroTestsProps
                         <div key={field.key} className="grid gap-2">
                           <label className="text-sm font-medium">{field.label}</label>
                           {field.type === 'status' ? (
-                            <Select
-                              value={getTestResult(section.name, field.key)}
-                              onValueChange={(value) => updateTestResult(section.name, field.key, value)}
-                            >
-                              <SelectTrigger className="h-10">
-                                <SelectValue placeholder="Выберите" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="normal">Норма</SelectItem>
-                                <SelectItem value="deviation">Отклонение</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                variant={!getTestResult(section.name, field.key) || getTestResult(section.name, field.key) === 'normal' ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => updateTestResult(section.name, field.key, 'normal')}
+                                className="flex-1"
+                              >
+                                Норма
+                              </Button>
+                              <Button
+                                type="button"
+                                variant={getTestResult(section.name, field.key) === 'deviation' ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => updateTestResult(section.name, field.key, 'deviation')}
+                                className="flex-1"
+                              >
+                                Отклонение
+                              </Button>
+                            </div>
                           ) : field.key === 'notes' ? (
                             <Textarea
                               value={getTestResult(section.name, field.key)}
