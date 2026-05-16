@@ -4,9 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import type { Visit, MuscleChain } from '@/lib/types'
+import { format, parseISO } from 'date-fns'
+import { ru } from 'date-fns/locale'
 
 interface TabMuscleChainsProps {
   visit: Visit
+  allVisits?: Visit[]
   onUpdate: (updates: Partial<Visit>) => void
 }
 
@@ -49,7 +52,7 @@ const muscleChainDefinitions = [
   },
 ]
 
-export function TabMuscleChains({ visit, onUpdate }: TabMuscleChainsProps) {
+export function TabMuscleChains({ visit, allVisits = [], onUpdate }: TabMuscleChainsProps) {
   const getChainStatus = (chainId: string): MuscleChain['status'] => {
     const chain = visit.muscleChains.chains.find((c) => c.id === chainId)
     return chain?.status || 'norm'
@@ -315,6 +318,126 @@ export function TabMuscleChains({ visit, onUpdate }: TabMuscleChainsProps) {
                     </div>
                   )
                 })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Timeline across visits */}
+        {allVisits.length > 1 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Динамика по приёмам</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[...allVisits]
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .map((v, idx, arr) => {
+                    const vDate = format(parseISO(v.date), 'd MMM yyyy', { locale: ru })
+                    const broken = v.muscleChains.chains.filter((c) => c.status === 'break')
+                    const normal = v.muscleChains.chains.filter((c) => c.status === 'norm')
+                    const isCurrentVisit = v.id === visit.id
+
+                    // Get chain status for this visit
+                    const getVisitChainStatus = (chainId: string): MuscleChain['status'] => {
+                      const chain = v.muscleChains.chains.find((c) => c.id === chainId)
+                      return chain?.status || 'norm'
+                    }
+
+                    const getVisitChainSideStatus = (
+                      chainId: string,
+                      side: 'leftStatus' | 'rightStatus'
+                    ) => {
+                      const chain = v.muscleChains.chains.find((c) => c.id === chainId)
+                      return chain?.[side] || chain?.status || 'norm'
+                    }
+
+                    // Mini chain indicators
+                    const MiniChainIndicator = ({ chainId }: { chainId: string }) => {
+                      const status = getVisitChainStatus(chainId)
+                      const leftStatus = getVisitChainSideStatus(chainId, 'leftStatus')
+                      const rightStatus = getVisitChainSideStatus(chainId, 'rightStatus')
+                      const definition = muscleChainDefinitions.find((c) => c.id === chainId)
+
+                      return (
+                        <div className="flex flex-col items-center gap-1">
+                          <div
+                            className={cn(
+                              'w-3 h-3 rounded-full',
+                              status === 'break' ? 'bg-destructive' : 'bg-muted'
+                            )}
+                          />
+                          <div className="flex gap-0.5">
+                            <div
+                              className={cn(
+                                'w-1.5 h-1.5 rounded-full',
+                                leftStatus === 'break' ? 'bg-destructive' : 'bg-muted'
+                              )}
+                            />
+                            <div
+                              className={cn(
+                                'w-1.5 h-1.5 rounded-full',
+                                rightStatus === 'break' ? 'bg-destructive' : 'bg-muted'
+                              )}
+                            />
+                          </div>
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <div
+                        key={v.id}
+                        className={cn(
+                          'rounded-lg border p-4',
+                          isCurrentVisit && 'border-primary bg-primary/5'
+                        )}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className={cn(
+                              'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                              isCurrentVisit ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                            )}>
+                              {arr.length - idx}
+                            </span>
+                            <span className="font-medium text-sm">{vDate}</span>
+                          </div>
+                          <div className="flex gap-3 text-xs text-muted-foreground">
+                            <span className="text-success">✓{normal.length}</span>
+                            <span className="text-destructive">⚠{broken.length}</span>
+                          </div>
+                        </div>
+
+                        {/* Chain indicators grid */}
+                        <div className="grid grid-cols-4 gap-2 mb-3">
+                          {muscleChainDefinitions.map((chain) => (
+                            <div key={chain.id} className="flex flex-col items-center">
+                              <MiniChainIndicator chainId={chain.id} />
+                              <span className="text-[10px] text-muted-foreground text-center mt-1 leading-tight">
+                                {chain.name.split(' ')[0]}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Broken chain chips */}
+                        <div className="flex flex-wrap gap-1">
+                          {broken.slice(0, 4).map((chain) => (
+                            <span key={chain.id} className="rounded bg-destructive/20 px-2 py-0.5 text-xs text-destructive">
+                              {chain.name}
+                            </span>
+                          ))}
+                          {broken.length > 4 && (
+                            <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                              +{broken.length - 4} ещё
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
               </div>
             </CardContent>
           </Card>

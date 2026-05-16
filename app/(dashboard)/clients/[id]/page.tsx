@@ -511,7 +511,7 @@ export default function ClientCardPage() {
 
           <TabsContent value="muscles" className="h-full m-0">
             {currentVisit && (
-              <TabMuscleChains visit={currentVisit} onUpdate={updateVisit} />
+              <TabMuscleChains visit={currentVisit} allVisits={visitsWithCurrent} onUpdate={updateVisit} />
             )}
           </TabsContent>
 
