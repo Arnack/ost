@@ -151,10 +151,12 @@ function MiniFeet({ selectedToe }: { selectedToe: { left: number | null; right: 
 }
 
 /** Mini toe circles for comparison tables */
-function MiniToeCircles({ selectedToe }: { selectedToe: number | null }) {
+function MiniToeCircles({ selectedToe, isReverted }: { selectedToe: number | null, isReverted?: boolean }) {
+  const toeArray = isReverted ? [10, 9, 8, 7, 6, 5, 4, 3, 2, 1] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   return (
     <div className="flex gap-0.5">
-      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
+      {toeArray
+        .map((num) => {
         const isSelected = selectedToe === num
         const isVirtual = num > 5
         return (
@@ -163,10 +165,10 @@ function MiniToeCircles({ selectedToe }: { selectedToe: number | null }) {
             className={cn(
               'w-3 h-3 rounded-full flex items-center justify-center text-[7px] font-bold',
               isSelected
-                ? 'bg-primary text-primary-foreground'
+                ? 'border border-solid border-muted-foreground/30 bg-primary text-primary-foreground '
                 : isVirtual
                   ? 'border border-dashed border-muted-foreground/30 text-muted-foreground/30'
-                  : 'bg-muted text-muted-foreground'
+                  : 'border border-solid bg-muted text-muted-foreground'
             )}
           >
             {isSelected ? num : ''}
@@ -580,7 +582,7 @@ export function TabGravity({ visit, allVisits = [], onUpdate }: TabGravityProps)
                           const leftToe = (pv.gravityData as any).selectedToeLeft ?? null
                           return (
                             <td key={pv.id} className="p-2 text-center">
-                              <MiniToeCircles selectedToe={leftToe} />
+                              <MiniToeCircles isReverted selectedToe={leftToe} />
                             </td>
                           )
                         })}
