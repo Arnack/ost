@@ -14,8 +14,9 @@ import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { Separator } from '@/components/ui/separator'
 import { VoiceMicButton } from '@/components/ui/voice-mic-button'
 import { MarkdownViewer } from '@/components/ui/markdown-viewer'
+import { AIChat } from '@/components/ui/ai-chat'
 import { isVoiceSupported, startVoiceInput, stopVoiceInput } from '@/lib/voice'
-import { analyzeVisit } from '@/lib/ai'
+import { analyzeVisit, formatVisitForAnalysis } from '@/lib/ai'
 import type { Visit, Client } from '@/lib/types'
 
 interface TabVisitInfoProps {
@@ -211,6 +212,10 @@ export function TabVisitInfo({ visit, client, onUpdate, onUpdateVisit, onNewVisi
             )}
           </CardContent>
         </Card>
+
+        {visit.aiSummary && (
+          <AIChat context={formatVisitForAnalysis(visit, client)} />
+        )}
 
         <Separator />
 

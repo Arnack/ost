@@ -7,7 +7,7 @@ export interface AnalysisResult {
   concerns: string[]
 }
 
-function formatVisitForAnalysis(visit: Visit, client: Client): string {
+export function formatVisitForAnalysis(visit: Visit, client: Client): string {
   const spineIssues = visit.spineData.segments
     .filter((s) => s.status !== 'normal')
     .map((s) => `${s.name}: ${s.status}`)
