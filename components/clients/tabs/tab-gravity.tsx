@@ -80,13 +80,112 @@ function ReferenceGrid({ pattern }: { pattern: Grid4 }) {
   )
 }
 
+/** Mini 2×2 grid for comparison tables */
+function MiniPatternGrid({ pattern }: { pattern: Grid4 }) {
+  const cells: [keyof Grid4, string][] = [
+    ['upperLeft',  'rounded-tl'],
+    ['upperRight', 'rounded-tr'],
+    ['lowerLeft',  'rounded-bl'],
+    ['lowerRight', 'rounded-br'],
+  ]
+  return (
+    <div className="grid grid-cols-2 gap-0.5 w-10 mx-auto">
+      {cells.map(([key, rClass]) => (
+        <div
+          key={key}
+          className={cn(
+            'h-4 flex items-center justify-center text-[8px] font-bold border',
+            rClass,
+            cellClass(pattern[key])
+          )}
+        >
+          {cellLabel(pattern[key])}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Mini feet SVG for comparison tables */
+function MiniFeet({ selectedToe }: { selectedToe: { left: number | null; right: number | null } }) {
+  const toes = [
+    // Left foot toes
+    { cx: 15, cy: 35, rx: 3, ry: 4, foot: 'left' as const, number: 1 },
+    { cx: 20, cy: 33, rx: 3, ry: 3, foot: 'left' as const, number: 2 },
+    { cx: 25, cy: 33, rx: 3, ry: 3, foot: 'left' as const, number: 3 },
+    { cx: 30, cy: 33, rx: 3, ry: 3, foot: 'left' as const, number: 4 },
+    { cx: 35, cy: 35, rx: 3, ry: 4, foot: 'left' as const, number: 5 },
+    // Right foot toes
+    { cx: 55, cy: 35, rx: 3, ry: 4, foot: 'right' as const, number: 1 },
+    { cx: 50, cy: 33, rx: 3, ry: 3, foot: 'right' as const, number: 2 },
+    { cx: 45, cy: 33, rx: 3, ry: 3, foot: 'right' as const, number: 3 },
+    { cx: 40, cy: 33, rx: 3, ry: 3, foot: 'right' as const, number: 4 },
+    { cx: 35, cy: 35, rx: 3, ry: 4, foot: 'right' as const, number: 5 },
+  ]
+
+  return (
+    <svg width="70" height="50" viewBox="0 0 70 50" xmlns="http://www.w3.org/2000/svg">
+      {/* Left foot body */}
+      <ellipse cx="25" cy="25" rx="12" ry="18" className="fill-muted stroke-border" strokeWidth="0.5" />
+      {/* Right foot body */}
+      <ellipse cx="45" cy="25" rx="12" ry="18" className="fill-muted stroke-border" strokeWidth="0.5" />
+      
+      {/* Toes */}
+      {toes.map((toe) => {
+        const isSelected = selectedToe[toe.foot] === toe.number
+        return (
+          <ellipse
+            key={`${toe.foot}-${toe.number}`}
+            cx={toe.cx}
+            cy={toe.cy}
+            rx={toe.rx}
+            ry={toe.ry}
+            fill={isSelected ? '#ef4444' : 'hsl(var(--muted))'}
+            stroke={isSelected ? '#dc2626' : 'hsl(var(--border))'}
+            strokeWidth="0.5"
+          />
+        )
+      })}
+    </svg>
+  )
+}
+
+/** Mini toe circles for comparison tables */
+function MiniToeCircles({ selectedToe }: { selectedToe: number | null }) {
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
+        const isSelected = selectedToe === num
+        const isVirtual = num > 5
+        return (
+          <div
+            key={num}
+            className={cn(
+              'w-3 h-3 rounded-full flex items-center justify-center text-[7px] font-bold',
+              isSelected
+                ? 'bg-primary text-primary-foreground'
+                : isVirtual
+                  ? 'border border-dashed border-muted-foreground/30 text-muted-foreground/30'
+                  : 'bg-muted text-muted-foreground'
+            )}
+          >
+            {isSelected ? num : ''}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 /** Interactive 2×2 grid where every cell toggles independently */
 function PatternGrid({
   data,
   onChange,
+  previousData,
 }: {
   data: Grid4
   onChange: (key: keyof Grid4, value: GridValue) => void
+  previousData?: Grid4
 }) {
   const cells: [keyof Grid4, string][] = [
     ['upperLeft',  'rounded-tl-lg'],
@@ -95,21 +194,30 @@ function PatternGrid({
     ['lowerRight', 'rounded-br-lg'],
   ]
   return (
-    <div className="grid grid-cols-2 gap-0.5 w-28 mx-auto">
-      {cells.map(([key, rClass]) => (
-        <button
-          key={key}
-          type="button"
-          onClick={() => onChange(key, cycleValue(data[key]))}
-          className={cn(
-            'h-12 flex items-center justify-center text-lg font-bold border-2 transition-colors',
-            rClass,
-            cellClass(data[key])
-          )}
-        >
-          {cellLabel(data[key])}
-        </button>
-      ))}
+    <div className="grid grid-cols-2 gap-0.5 w-28 mx-auto relative">
+      {cells.map(([key, rClass]) => {
+        const prevValue = previousData?.[key]
+        const hasChange = prevValue && prevValue !== data[key]
+        return (
+          <button
+            key={key}
+            type="button"
+            onClick={() => onChange(key, cycleValue(data[key]))}
+            className={cn(
+              'h-12 flex items-center justify-center text-lg font-bold border-2 transition-colors relative',
+              rClass,
+              cellClass(data[key])
+            )}
+          >
+            {cellLabel(data[key])}
+            {hasChange && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-warning text-warning-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
+                {cellLabel(prevValue!)}
+              </span>
+            )}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -118,9 +226,11 @@ function PatternGrid({
 function FeetDiagram({
   selectedToe,
   onSelect,
+  previousToe,
 }: {
   selectedToe: { left: number | null; right: number | null }
   onSelect: (foot: 'left' | 'right', toeNumber: number | null) => void
+  previousToe?: { left: number | null; right: number | null }
 }) {
   // Toe definitions matching the new SVG coordinates
   // Left foot (a suffix): 1-10
@@ -172,7 +282,9 @@ function FeetDiagram({
 
         {/* Toes */}
         {toes.map((toe) => {
-          const isSelected = selectedToe[toe.foot] === toe.number
+          const isSelected = selectedToe[toe.foot as 'left' | 'right'] === toe.number
+          const wasSelected = previousToe?.[toe.foot as 'left' | 'right'] === toe.number
+          const hasChange = wasSelected && !isSelected
           return (
             <g key={toe.id} onClick={() => onSelect(toe.foot, isSelected ? null : toe.number)} style={{ cursor: 'pointer' }}>
               <ellipse
@@ -198,6 +310,16 @@ function FeetDiagram({
               >
                 {toe.label}
               </text>
+              {hasChange && (
+                <circle
+                  cx={toe.cx + 8}
+                  cy={toe.cy - 8}
+                  r="6"
+                  fill="hsl(var(--warning))"
+                  stroke="hsl(var(--warning-foreground))"
+                  strokeWidth="1"
+                />
+              )}
             </g>
           )
         })}
@@ -205,13 +327,13 @@ function FeetDiagram({
         {/* Status text */}
         <text x="390" y="515" textAnchor="middle" className="fill-muted-foreground" fontSize="13">
           {selectedToe.left || selectedToe.right 
-            ? `Левая: ${selectedToe.left ?? '—'} · Правая: ${selectedToe.right ?? '—'}`
+            ? `Правая: ${selectedToe.left ?? '—'} · Левая: ${selectedToe.right ?? '—'}`
             : 'нажми на цифру'
           }
         </text>
       </svg>
       <p className="text-xs text-muted-foreground text-center mt-1">
-        Нажмите на палец чтобы выбрать (только один на каждую стопу)
+        Нажмите на цифру чтобы выбрать (только один на каждую стопу)
       </p>
     </div>
   )
@@ -289,11 +411,6 @@ export function TabGravity({ visit, allVisits = [], onUpdate }: TabGravityProps)
     })
   }
 
-  const previousVisits = allVisits
-    .filter((item) => item.id !== visit.id && new Date(item.date) < new Date(visit.date))
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5)
-
   const getVisitPattern4 = (item: Visit, key: string): Grid4 => {
     const stored = item.gravityData[`pattern4_${key}` as keyof GravityData]
     if (stored && typeof stored === 'object' && 'upperLeft' in stored) return stored as Grid4
@@ -301,6 +418,24 @@ export function TabGravity({ visit, allVisits = [], onUpdate }: TabGravityProps)
     const value = (old as GridValue) || 'neutral'
     return { upperLeft: value, upperRight: value, lowerLeft: value, lowerRight: value }
   }
+
+  const previousVisits = allVisits
+    .filter((item) => item.id !== visit.id && new Date(item.date) < new Date(visit.date))
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5)
+
+  const previousVisit = previousVisits[0]
+  const previousPatternData = previousVisit ? {
+    breathing: getVisitPattern4(previousVisit, 'breathing'),
+    rightStep: getVisitPattern4(previousVisit, 'rightStep'),
+    leftStep: getVisitPattern4(previousVisit, 'leftStep'),
+    vertical: getVisitPattern4(previousVisit, 'vertical'),
+  } : undefined
+
+  const previousToeData = previousVisit ? {
+    left: (previousVisit.gravityData as any).selectedToeLeft ?? null,
+    right: (previousVisit.gravityData as any).selectedToeRight ?? null,
+  } : undefined
 
   return (
     <ScrollArea className="h-full">
@@ -311,13 +446,13 @@ export function TabGravity({ visit, allVisits = [], onUpdate }: TabGravityProps)
             <CardTitle>Паттерны центров тяжести</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[auto_1fr]">
-              <div className="rounded-lg border bg-muted/30 p-4 w-full lg:w-64">
-                <p className="mb-4 text-sm font-semibold text-center">Эталонная схема</p>
-                <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 items-start gap-4 sm:gap-6 lg:grid-cols-[auto_1fr]">
+              <div className="rounded-lg border bg-muted/30 p-3 sm:p-4 w-full lg:w-64">
+                <p className="mb-3 sm:mb-4 text-xs sm:text-sm font-semibold text-center">Эталонная схема</p>
+                <div className="grid grid-cols-2 gap-2 sm:gap-4">
                   {Object.keys(referencePatterns).map((key) => (
-                    <div key={key} className="space-y-2">
-                      <p className="text-xs text-center text-muted-foreground leading-tight">
+                    <div key={key} className="space-y-1 sm:space-y-2">
+                      <p className="text-[10px] sm:text-xs text-center text-muted-foreground leading-tight">
                         {patternLabels[key]}
                       </p>
                       <ReferenceGrid pattern={referencePatterns[key]} />
@@ -326,25 +461,26 @@ export function TabGravity({ visit, allVisits = [], onUpdate }: TabGravityProps)
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {Object.keys(patternLabels).map((key) => (
-                  <div key={key} className="grid grid-cols-[1fr_auto] items-center gap-3">
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-center">{patternLabels[key]}</p>
+                  <div key={key} className="grid grid-cols-[1fr_auto] items-center gap-2 sm:gap-3">
+                    <div className="space-y-1 sm:space-y-2">
+                      <p className="text-xs sm:text-sm font-medium text-center">{patternLabels[key]}</p>
                       <PatternGrid
                         data={getPattern4(key)}
+                        previousData={previousPatternData?.[key as keyof typeof previousPatternData]}
                         onChange={(cellKey, value) => setPattern4Cell(key, cellKey, value)}
                       />
-                      <p className="text-xs text-muted-foreground text-center">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground text-center">
                         Каждая ячейка независима
                       </p>
                     </div>
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-1 sm:gap-2">
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="h-8 w-20 border-success/40 text-xs text-success hover:bg-success/10 hover:text-success"
+                        className="h-7 sm:h-8 w-14 sm:w-16 border-success/40 text-[10px] sm:text-xs text-success hover:bg-success/10 hover:text-success"
                         onClick={() => setPattern4(key, referencePatterns[key])}
                       >
                         Норма
@@ -353,7 +489,7 @@ export function TabGravity({ visit, allVisits = [], onUpdate }: TabGravityProps)
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="h-8 w-20 border-destructive/40 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        className="h-7 sm:h-8 w-14 sm:w-16 border-destructive/40 text-[10px] sm:text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
                         onClick={() => setPatternDeviation(key)}
                       >
                         Отклон.
@@ -363,6 +499,47 @@ export function TabGravity({ visit, allVisits = [], onUpdate }: TabGravityProps)
                 ))}
               </div>
             </div>
+
+            {previousVisits.length > 0 && (
+              <div className="mt-4 sm:mt-6 rounded-lg border bg-muted/20 p-3 sm:p-4">
+                <h3 className="text-xs sm:text-sm font-medium mb-3">Сравнение с предыдущими приёмами</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[10px] sm:text-xs">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-2 font-medium text-muted-foreground">Паттерн</th>
+                        <th className="text-center p-2 font-medium text-accent">Текущий</th>
+                        {previousVisits.map((pv) => (
+                          <th key={pv.id} className="text-center p-2 font-medium text-muted-foreground whitespace-nowrap">
+                            {new Date(pv.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.keys(patternLabels).map((key) => (
+                        <tr key={key} className="border-b last:border-0">
+                          <td className="p-2 text-muted-foreground whitespace-nowrap">
+                            {patternLabels[key]}
+                          </td>
+                          <td className="p-2 text-center bg-accent/30">
+                            <MiniPatternGrid pattern={getPattern4(key)} />
+                          </td>
+                          {previousVisits.map((pv) => {
+                            const pattern = getVisitPattern4(pv, key)
+                            return (
+                              <td key={pv.id} className="p-2 text-center">
+                                <MiniPatternGrid pattern={pattern} />
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -371,49 +548,62 @@ export function TabGravity({ visit, allVisits = [], onUpdate }: TabGravityProps)
             <CardTitle>Мезинец и линия тяжести</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
-              <div className="rounded-xl border bg-muted/20 p-4">
-                <FeetDiagram selectedToe={selectedToe} onSelect={selectToe} />
-              </div>
-              <div className="rounded-xl border bg-muted/20 p-4">
-                <h3 className="text-sm font-medium">Предыдущие приёмы</h3>
-                {previousVisits.length === 0 ? (
-                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                    Нет сохранённых прошлых приёмов для сравнения динамики.
-                  </p>
-                ) : (
-                  <div className="mt-3 space-y-3">
-                    {previousVisits.map((previousVisit) => {
-                      const leftToe = (previousVisit.gravityData as any).selectedToeLeft
-                      const rightToe = (previousVisit.gravityData as any).selectedToeRight
-                      return (
-                        <div key={previousVisit.id} className="rounded-lg border bg-background p-3">
-                          <p className="text-xs font-medium text-muted-foreground">
-                            {new Date(previousVisit.date).toLocaleDateString('ru-RU')}
-                          </p>
-                          <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                            {Object.keys(patternLabels).map((key) => {
-                              const pattern = getVisitPattern4(previousVisit, key)
-                              return (
-                                <div key={key}>
-                                  <p className="text-muted-foreground">{patternLabels[key]}</p>
-                                  <p className="font-medium">
-                                    {pattern.upperLeft}/{pattern.upperRight} · {pattern.lowerLeft}/{pattern.lowerRight}
-                                  </p>
-                                </div>
-                              )
-                            })}
-                          </div>
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            Пальцы: Л:{leftToe ?? '—'} · П:{rightToe ?? '—'}
-                          </p>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
+            <div className="grid gap-4 sm:gap-6 lg:grid-cols-1">
+              <div className="rounded-xl border bg-muted/20 p-3 sm:p-4">
+                <FeetDiagram selectedToe={selectedToe} onSelect={selectToe} previousToe={previousToeData} />
               </div>
             </div>
+
+            {previousVisits.length > 0 && (
+              <div className="mt-4 sm:mt-6 rounded-lg border bg-muted/20 p-3 sm:p-4">
+                <h3 className="text-xs sm:text-sm font-medium mb-3">Сравнение с предыдущими приёмами</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[10px] sm:text-xs">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-2 font-medium text-muted-foreground">Стопа</th>
+                        <th className="text-center p-2 font-medium text-accent">Текущий</th>
+                        {previousVisits.map((pv) => (
+                          <th key={pv.id} className="text-center p-2 font-medium text-muted-foreground whitespace-nowrap">
+                            {new Date(pv.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b">
+                        <td className="p-2 text-muted-foreground whitespace-nowrap">Правая</td>
+                        <td className="p-2 text-center bg-accent/30">
+                          <MiniToeCircles selectedToe={selectedToe.left} />
+                        </td>
+                        {previousVisits.map((pv) => {
+                          const leftToe = (pv.gravityData as any).selectedToeLeft ?? null
+                          return (
+                            <td key={pv.id} className="p-2 text-center">
+                              <MiniToeCircles selectedToe={leftToe} />
+                            </td>
+                          )
+                        })}
+                      </tr>
+                      <tr>
+                        <td className="p-2 text-muted-foreground whitespace-nowrap">Левая</td>
+                        <td className="p-2 text-center bg-accent/30">
+                          <MiniToeCircles selectedToe={selectedToe.right} />
+                        </td>
+                        {previousVisits.map((pv) => {
+                          const rightToe = (pv.gravityData as any).selectedToeRight ?? null
+                          return (
+                            <td key={pv.id} className="p-2 text-center">
+                              <MiniToeCircles selectedToe={rightToe} />
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -423,15 +613,15 @@ export function TabGravity({ visit, allVisits = [], onUpdate }: TabGravityProps)
             <CardTitle>Распределение веса на ногах</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 xl:grid-cols-[1fr_1fr_auto]">
-              <div className="rounded-xl border bg-muted/20 p-4">
-                <div className="mb-4">
-                  <h3 className="text-sm font-medium">Вес пациента</h3>
-                  <p className="text-xs text-muted-foreground">Введите фактический вес, распределение по ногам считается автоматически</p>
+            <div className="grid gap-4 sm:gap-6 lg:grid-cols-[1fr_1fr_auto] xl:grid-cols-[1fr_1fr_auto]">
+              <div className="rounded-xl border bg-muted/20 p-3 sm:p-4">
+                <div className="mb-3 sm:mb-4">
+                  <h3 className="text-xs sm:text-sm font-medium">Вес пациента</h3>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">Введите фактический вес, распределение по ногам считается автоматически</p>
                 </div>
-                <FieldGroup className="grid gap-4 sm:grid-cols-3">
+                <FieldGroup className="grid gap-3 sm:gap-4 grid-cols-3">
                   <Field>
-                    <FieldLabel>Всего</FieldLabel>
+                    <FieldLabel className="text-[10px] sm:text-xs">Всего</FieldLabel>
                     <div className="relative">
                       <Input
                         type="number"
@@ -439,83 +629,83 @@ export function TabGravity({ visit, allVisits = [], onUpdate }: TabGravityProps)
                         onChange={(e) =>
                           handleTotalWeightChange(Number(e.target.value))
                         }
-                        className="h-12 pr-10 text-center text-lg font-medium"
+                        className="h-10 sm:h-12 pr-8 sm:pr-10 text-center text-base sm:text-lg font-medium"
                         min={0}
                         step={0.1}
                       />
-                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">кг</span>
+                      <span className="pointer-events-none absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-[10px] sm:text-sm text-muted-foreground">кг</span>
                     </div>
                   </Field>
                   <Field>
-                    <FieldLabel>Левая нога</FieldLabel>
-                    <div className="h-12 flex items-center justify-center rounded-md border bg-background text-lg font-medium">
+                    <FieldLabel className="text-[10px] sm:text-xs">Левая нога</FieldLabel>
+                    <div className="h-10 sm:h-12 flex items-center justify-center rounded-md border bg-background text-base sm:text-lg font-medium">
                       {weightLeft.toFixed(1)} кг
                     </div>
                   </Field>
                   <Field>
-                    <FieldLabel>Правая нога</FieldLabel>
-                    <div className="h-12 flex items-center justify-center rounded-md border bg-background text-lg font-medium">
+                    <FieldLabel className="text-[10px] sm:text-xs">Правая нога</FieldLabel>
+                    <div className="h-10 sm:h-12 flex items-center justify-center rounded-md border bg-background text-base sm:text-lg font-medium">
                       {weightRight.toFixed(1)} кг
                     </div>
                   </Field>
                 </FieldGroup>
               </div>
 
-              <div className="rounded-xl border bg-muted/20 p-4">
-                <div className="mb-4">
-                  <h3 className="text-sm font-medium">Энергозатраты</h3>
-                  <p className="text-xs text-muted-foreground">Введите значения отдельно для левой и правой стороны</p>
+              <div className="rounded-xl border bg-muted/20 p-3 sm:p-4">
+                <div className="mb-3 sm:mb-4">
+                  <h3 className="text-xs sm:text-sm font-medium">Энергозатраты</h3>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">Введите значения отдельно для левой и правой стороны</p>
                 </div>
-                <FieldGroup className="grid gap-4 sm:grid-cols-2">
+                <FieldGroup className="grid gap-3 sm:gap-4 grid-cols-2">
                   <Field>
-                    <FieldLabel>Левая сторона</FieldLabel>
+                    <FieldLabel className="text-[10px] sm:text-xs">Левая сторона</FieldLabel>
                     <Input
                       type="number"
                       value={leftCost}
                       onChange={(e) =>
                         updateGravityData({ leftCost: Number(e.target.value) })
                       }
-                      className="h-12 text-center text-lg font-medium"
+                      className="h-10 sm:h-12 text-center text-base sm:text-lg font-medium"
                       min={0}
                     />
                   </Field>
                   <Field>
-                    <FieldLabel>Правая сторона</FieldLabel>
+                    <FieldLabel className="text-[10px] sm:text-xs">Правая сторона</FieldLabel>
                     <Input
                       type="number"
                       value={rightCost}
                       onChange={(e) =>
                         updateGravityData({ rightCost: Number(e.target.value) })
                       }
-                      className="h-12 text-center text-lg font-medium"
+                      className="h-10 sm:h-12 text-center text-base sm:text-lg font-medium"
                       min={0}
                     />
                   </Field>
                 </FieldGroup>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3 xl:w-72 xl:grid-cols-1">
-                <div className="rounded-xl border bg-muted/30 p-4">
-                  <p className="text-xs font-medium text-muted-foreground">Затраты всего</p>
-                  <p className="mt-1 text-xl font-semibold">{totalCost.toFixed(1)}</p>
+              <div className="grid gap-2 sm:gap-3 grid-cols-3 sm:grid-cols-1 xl:w-72 xl:grid-cols-1">
+                <div className="rounded-xl border bg-muted/30 p-2 sm:p-4">
+                  <p className="text-[10px] sm:text-xs font-medium text-muted-foreground">Затраты всего</p>
+                  <p className="mt-1 text-lg sm:text-xl font-semibold">{totalCost.toFixed(1)}</p>
                 </div>
                 <div className={cn(
-                  'rounded-xl border p-4',
+                  'rounded-xl border p-2 sm:p-4',
                   costDifference > 0
                     ? 'border-warning/40 bg-warning/10'
                     : 'bg-muted/30'
                 )}>
-                  <p className="text-xs font-medium text-muted-foreground">Разница</p>
-                  <p className="mt-1 text-xl font-semibold">{costDifference.toFixed(1)} кг</p>
+                  <p className="text-[10px] sm:text-xs font-medium text-muted-foreground">Разница</p>
+                  <p className="mt-1 text-lg sm:text-xl font-semibold">{costDifference.toFixed(1)} кг</p>
                 </div>
                 <div className={cn(
-                  'rounded-xl border p-4',
+                  'rounded-xl border p-2 sm:p-4',
                   costRatio > 1
                     ? 'border-warning/40 bg-warning/10'
                     : 'bg-muted/30'
                 )}>
-                  <p className="text-xs font-medium text-muted-foreground">Превышение</p>
-                  <p className="mt-1 text-xl font-semibold">{costRatio.toFixed(1)}×</p>
+                  <p className="text-[10px] sm:text-xs font-medium text-muted-foreground">Превышение</p>
+                  <p className="mt-1 text-lg sm:text-xl font-semibold">{costRatio.toFixed(1)}×</p>
                 </div>
               </div>
             </div>
