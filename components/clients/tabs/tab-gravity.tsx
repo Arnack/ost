@@ -114,109 +114,104 @@ function PatternGrid({
   )
 }
 
-/** Feet diagram using the provided SVG with clickable toes */
+/** Feet diagram using the new SVG with 10 clickable toes per foot */
 function FeetDiagram({
-  markedToes,
-  onToggle,
+  selectedToe,
+  onSelect,
 }: {
-  markedToes: Set<string>
-  onToggle: (toeId: string) => void
+  selectedToe: { left: number | null; right: number | null }
+  onSelect: (foot: 'left' | 'right', toeNumber: number | null) => void
 }) {
-  // Toe definitions: id, cx, cy, rx, ry, label, foot
+  // Toe definitions matching the new SVG coordinates
+  // Left foot (a suffix): 1-10
+  // Right foot (b suffix): 1-10
   const toes = [
-    // Left foot toes (anatomical left = viewer's right in the SVG)
-    { id: 'lt1', cx: 386, cy: 174, rx: 18, ry: 22, label: '1', foot: 'left' },
-    { id: 'lt2', cx: 414, cy: 162, rx: 14, ry: 19, label: '2', foot: 'left' },
-    { id: 'lt3', cx: 441, cy: 166, rx: 13, ry: 18, label: '3', foot: 'left' },
-    { id: 'lt4', cx: 466, cy: 172, rx: 12, ry: 16, label: '4', foot: 'left' },
-    { id: 'lt5', cx: 490, cy: 184, rx: 10, ry: 13, label: '5', foot: 'left', isLittleToe: true },
+    // Left foot toes
+    { id: 'c1a', cx: 118, cy: 404, rx: 11, ry: 13, label: '1', foot: 'left', number: 1 },
+    { id: 'c2a', cx: 144, cy: 412, rx: 12, ry: 14, label: '2', foot: 'left', number: 2 },
+    { id: 'c3a', cx: 173, cy: 415, rx: 13, ry: 15, label: '3', foot: 'left', number: 3 },
+    { id: 'c4a', cx: 202, cy: 412, rx: 12, ry: 14, label: '4', foot: 'left', number: 4 },
+    { id: 'c5a', cx: 230, cy: 404, rx: 16, ry: 17, label: '5', foot: 'left', number: 5 },
+    { id: 'c6a', cx: 257, cy: 396, rx: 14, ry: 15, label: '6', foot: 'left', number: 6, isGhost: true },
+    { id: 'c7a', cx: 279, cy: 388, rx: 12, ry: 13, label: '7', foot: 'left', number: 7, isGhost: true },
+    { id: 'c8a', cx: 298, cy: 381, rx: 11, ry: 12, label: '8', foot: 'left', number: 8, isGhost: true },
+    { id: 'c9a', cx: 314, cy: 375, rx: 10, ry: 11, label: '9', foot: 'left', number: 9, isGhost: true },
+    { id: 'c10a', cx: 328, cy: 369, rx: 9, ry: 10, label: '10', foot: 'left', number: 10, isGhost: true },
     // Right foot toes
-    { id: 'rt1', cx: 294, cy: 174, rx: 18, ry: 22, label: '1', foot: 'right' },
-    { id: 'rt2', cx: 266, cy: 162, rx: 14, ry: 19, label: '2', foot: 'right' },
-    { id: 'rt3', cx: 239, cy: 166, rx: 13, ry: 18, label: '3', foot: 'right' },
-    { id: 'rt4', cx: 214, cy: 172, rx: 12, ry: 16, label: '4', foot: 'right' },
-    { id: 'rt5', cx: 190, cy: 184, rx: 10, ry: 13, label: '5', foot: 'right', isLittleToe: true },
+    { id: 'c1b', cx: 662, cy: 404, rx: 11, ry: 13, label: '1', foot: 'right', number: 1 },
+    { id: 'c2b', cx: 636, cy: 412, rx: 12, ry: 14, label: '2', foot: 'right', number: 2 },
+    { id: 'c3b', cx: 607, cy: 415, rx: 13, ry: 15, label: '3', foot: 'right', number: 3 },
+    { id: 'c4b', cx: 578, cy: 412, rx: 12, ry: 14, label: '4', foot: 'right', number: 4 },
+    { id: 'c5b', cx: 550, cy: 404, rx: 16, ry: 17, label: '5', foot: 'right', number: 5 },
+    { id: 'c6b', cx: 523, cy: 396, rx: 14, ry: 15, label: '6', foot: 'right', number: 6, isGhost: true },
+    { id: 'c7b', cx: 501, cy: 388, rx: 12, ry: 13, label: '7', foot: 'right', number: 7, isGhost: true },
+    { id: 'c8b', cx: 482, cy: 381, rx: 11, ry: 12, label: '8', foot: 'right', number: 8, isGhost: true },
+    { id: 'c9b', cx: 466, cy: 375, rx: 10, ry: 11, label: '9', foot: 'right', number: 9, isGhost: true },
+    { id: 'c10b', cx: 452, cy: 369, rx: 9, ry: 10, label: '10', foot: 'right', number: 10, isGhost: true },
   ]
 
   return (
     <div className="w-full max-w-2xl mx-auto">
-      <svg width="100%" viewBox="0 0 680 520" xmlns="http://www.w3.org/2000/svg">
-        {/* Right foot body */}
-        <rect x="170" y="200" width="130" height="220" rx="18" className="fill-muted stroke-border" strokeWidth="1" />
-        <rect x="182" y="390" width="106" height="60" rx="22" className="fill-muted stroke-border" strokeWidth="1" />
-        <text x="235" y="490" textAnchor="middle" className="fill-muted-foreground" fontSize="13" fontWeight="500">Правая стопа</text>
-        <text x="295" y="218" textAnchor="middle" className="fill-muted-foreground" fontSize="10">Med</text>
-        <text x="175" y="218" textAnchor="middle" className="fill-muted-foreground" fontSize="10">Lat</text>
-
+      <svg width="100%" viewBox="0 0 780 530" xmlns="http://www.w3.org/2000/svg">
         {/* Left foot body */}
-        <rect x="380" y="200" width="130" height="220" rx="18" className="fill-muted stroke-border" strokeWidth="1" />
-        <rect x="392" y="390" width="106" height="60" rx="22" className="fill-muted stroke-border" strokeWidth="1" />
-        <text x="445" y="490" textAnchor="middle" className="fill-muted-foreground" fontSize="13" fontWeight="500">Левая стопа</text>
-        <text x="385" y="218" textAnchor="middle" className="fill-muted-foreground" fontSize="10">Med</text>
-        <text x="505" y="218" textAnchor="middle" className="fill-muted-foreground" fontSize="10">Lat</text>
+        <ellipse cx="175" cy="265" rx="65" ry="105" className="fill-muted stroke-border" strokeWidth="0.5" />
+        <ellipse cx="175" cy="368" rx="70" ry="28" className="fill-muted stroke-border" strokeWidth="0.5" />
+        <rect x="110" y="250" width="130" height="130" rx="6" opacity="0.55" className="fill-muted stroke-border" strokeWidth="0.5" />
+        <text x="175" y="148" textAnchor="middle" className="fill-muted-foreground" fontSize="11">левая</text>
 
-        {/* Divider */}
-        <line x1="340" y1="160" x2="340" y2="460" stroke="currentColor" strokeWidth="0.5" strokeDasharray="4 4" className="text-border" />
+        {/* Right foot body */}
+        <ellipse cx="605" cy="265" rx="65" ry="105" className="fill-muted stroke-border" strokeWidth="0.5" />
+        <ellipse cx="605" cy="368" rx="70" ry="28" className="fill-muted stroke-border" strokeWidth="0.5" />
+        <rect x="540" y="250" width="130" height="130" rx="6" opacity="0.55" className="fill-muted stroke-border" strokeWidth="0.5" />
+        <text x="605" y="148" textAnchor="middle" className="fill-muted-foreground" fontSize="11">правая</text>
 
         {/* Legend */}
-        <rect x="210" y="50" width="260" height="36" rx="8" className="fill-muted stroke-border" strokeWidth="0.5" />
-        <ellipse cx="234" cy="68" rx="10" ry="10" fill="#ef4444" stroke="#dc2626" strokeWidth="0.5" />
-        <text x="250" y="68" className="fill-muted-foreground" fontSize="12" dominantBaseline="central">= отмеченный палец</text>
+        <rect x="280" y="50" width="220" height="36" rx="8" className="fill-muted stroke-border" strokeWidth="0.5" />
+        <ellipse cx="304" cy="68" rx="10" ry="10" fill="#ef4444" stroke="#dc2626" strokeWidth="0.5" />
+        <text x="320" y="68" className="fill-muted-foreground" fontSize="12" dominantBaseline="central">= выбранный палец</text>
 
         {/* Toes */}
         {toes.map((toe) => {
-          const isMarked = markedToes.has(toe.id)
+          const isSelected = selectedToe[toe.foot] === toe.number
           return (
-            <g key={toe.id} onClick={() => onToggle(toe.id)} style={{ cursor: 'pointer' }}>
-              {toe.isLittleToe && (
-                <>
-                  <line
-                    x1={toe.cx}
-                    y1={toe.cy + toe.ry + 4}
-                    x2={toe.foot === 'left' ? toe.cx + 28 : toe.cx - 28}
-                    y2={toe.cy + toe.ry + 26}
-                    stroke="hsl(var(--destructive))"
-                    strokeWidth="1"
-                  />
-                  <text
-                    x={toe.foot === 'left' ? toe.cx + 32 : toe.cx - 32}
-                    y={toe.cy + toe.ry + 30}
-                    textAnchor={toe.foot === 'left' ? 'start' : 'end'}
-                    className="fill-destructive"
-                    fontSize="11"
-                    fontWeight="600"
-                  >
-                    мизинец
-                  </text>
-                </>
-              )}
+            <g key={toe.id} onClick={() => onSelect(toe.foot, isSelected ? null : toe.number)} style={{ cursor: 'pointer' }}>
               <ellipse
                 cx={toe.cx}
                 cy={toe.cy}
                 rx={toe.rx}
                 ry={toe.ry}
-                fill={isMarked ? '#ef4444' : 'hsl(var(--muted))'}
-                stroke={isMarked || toe.isLittleToe ? '#dc2626' : 'hsl(var(--border))'}
-                strokeWidth={toe.isLittleToe ? '2' : '1'}
+                fill={isSelected ? '#ef4444' : toe.isGhost ? 'none' : 'hsl(var(--muted))'}
+                stroke={isSelected ? '#dc2626' : toe.isGhost ? 'hsl(var(--border))' : 'hsl(var(--border))'}
+                strokeWidth={toe.isGhost ? '0.5' : isSelected ? '1' : '0.5'}
+                strokeDasharray={toe.isGhost ? '3 3' : undefined}
                 className="transition-colors"
               />
               <text
                 x={toe.cx}
-                y={toe.cy}
+                y={toe.cy + (toe.isGhost ? 23 : 22)}
                 textAnchor="middle"
-                dominantBaseline="central"
-                fontSize="13"
+                dominantBaseline="middle"
+                fontSize="14"
                 fontWeight="500"
-                fill={isMarked ? 'white' : 'hsl(var(--muted-foreground))'}
+                fill={isSelected ? 'white' : 'hsl(var(--muted-foreground))'}
+                opacity={toe.isGhost ? 0.3 : 1}
               >
                 {toe.label}
               </text>
             </g>
           )
         })}
+
+        {/* Status text */}
+        <text x="390" y="515" textAnchor="middle" className="fill-muted-foreground" fontSize="13">
+          {selectedToe.left || selectedToe.right 
+            ? `Левая: ${selectedToe.left ?? '—'} · Правая: ${selectedToe.right ?? '—'}`
+            : 'нажми на цифру'
+          }
+        </text>
       </svg>
       <p className="text-xs text-muted-foreground text-center mt-1">
-        Нажмите на палец чтобы отметить его положение
+        Нажмите на палец чтобы выбрать (только один на каждую стопу)
       </p>
     </div>
   )
@@ -261,15 +256,19 @@ export function TabGravity({ visit, allVisits = [], onUpdate }: TabGravityProps)
     })
   }
 
-  // Multi-toe marker support
-  const markedToes = new Set<string>(
-    (visit.gravityData as any).markedToes || []
-  )
-  const toggleToe = (toeId: string) => {
-    const next = new Set(markedToes)
-    if (next.has(toeId)) next.delete(toeId)
-    else next.add(toeId)
-    updateGravityData({ markedToes: Array.from(next) } as any)
+  // Single-toe selection per foot
+  const selectedToe = {
+    left: (visit.gravityData as any).selectedToeLeft ?? null,
+    right: (visit.gravityData as any).selectedToeRight ?? null,
+  }
+  const selectToe = (foot: 'left' | 'right', toeNumber: number | null) => {
+    const updates: any = {}
+    if (foot === 'left') {
+      updates.selectedToeLeft = toeNumber
+    } else {
+      updates.selectedToeRight = toeNumber
+    }
+    updateGravityData(updates)
   }
 
   const savedTotalWeight = visit.gravityData.totalWeight ?? 0
@@ -374,7 +373,7 @@ export function TabGravity({ visit, allVisits = [], onUpdate }: TabGravityProps)
           <CardContent>
             <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
               <div className="rounded-xl border bg-muted/20 p-4">
-                <FeetDiagram markedToes={markedToes} onToggle={toggleToe} />
+                <FeetDiagram selectedToe={selectedToe} onSelect={selectToe} />
               </div>
               <div className="rounded-xl border bg-muted/20 p-4">
                 <h3 className="text-sm font-medium">Предыдущие приёмы</h3>
@@ -385,7 +384,8 @@ export function TabGravity({ visit, allVisits = [], onUpdate }: TabGravityProps)
                 ) : (
                   <div className="mt-3 space-y-3">
                     {previousVisits.map((previousVisit) => {
-                      const toes = previousVisit.gravityData.markedToes || []
+                      const leftToe = (previousVisit.gravityData as any).selectedToeLeft
+                      const rightToe = (previousVisit.gravityData as any).selectedToeRight
                       return (
                         <div key={previousVisit.id} className="rounded-lg border bg-background p-3">
                           <p className="text-xs font-medium text-muted-foreground">
@@ -405,7 +405,7 @@ export function TabGravity({ visit, allVisits = [], onUpdate }: TabGravityProps)
                             })}
                           </div>
                           <p className="mt-2 text-xs text-muted-foreground">
-                            Пальцы: {toes.length > 0 ? toes.join(', ') : '—'}
+                            Пальцы: Л:{leftToe ?? '—'} · П:{rightToe ?? '—'}
                           </p>
                         </div>
                       )
