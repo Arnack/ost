@@ -146,6 +146,7 @@ export function TabInfo({ client, currentVisit, allVisits, onUpdate }: TabInfoPr
     startVoiceInput({
       interimResults: true,
       continuous: true,
+      restartOnEnd: true,
       onResult: (text) => {
         const nextValue = currentValue ? `${currentValue} ${text}` : text
         onUpdate({ [field]: nextValue })

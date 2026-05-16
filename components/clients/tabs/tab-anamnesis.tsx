@@ -64,6 +64,7 @@ export function TabAnamnesis({ client, onUpdate }: TabAnamnesisProps) {
     startVoiceInput({
       interimResults: true,
       continuous: true,
+      restartOnEnd: true,
       onResult: (text) => {
         const nextValue = currentValue ? `${currentValue} ${text}` : text
         updateAnamnesis(key, nextValue)
