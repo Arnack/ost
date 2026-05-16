@@ -474,7 +474,7 @@ export default function ClientCardPage() {
 
         <div className="flex-1 overflow-auto">
           <TabsContent value="info" className="h-full m-0">
-            <TabInfo client={client} onUpdate={updateClient} />
+            <TabInfo client={client} currentVisit={currentVisit} allVisits={visitsWithCurrent} onUpdate={updateClient} />
           </TabsContent>
 
           <TabsContent value="anamnesis" className="h-full m-0">

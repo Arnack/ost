@@ -6,6 +6,7 @@ export interface Photo {
   date: string
   description?: string
   projection?: 'front' | 'back' | 'left' | 'right' | 'other'
+  visitId?: string
 }
 
 export interface ClientFile {
@@ -14,6 +15,7 @@ export interface ClientFile {
   url: string
   type: string
   date: string
+  visitId?: string
 }
 
 export interface AudioNote {

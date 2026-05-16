@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Camera, Upload, X, FileText, Calendar } from 'lucide-react'
+import { Camera, Upload, X, FileText } from 'lucide-react'
 import { format, parseISO, differenceInYears } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -12,21 +12,26 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { FieldGroup, Field, FieldLabel } from '@/components/ui/field'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { VoiceMicButton } from '@/components/ui/voice-mic-button'
-import type { Client, Photo, ClientFile } from '@/lib/types'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { ChevronDown } from 'lucide-react'
+import type { Client, Photo, ClientFile, Visit } from '@/lib/types'
 import { isVoiceSupported, startVoiceInput, stopVoiceInput } from '@/lib/voice'
 
 interface TabInfoProps {
   client: Client
+  currentVisit: Visit | null
+  allVisits: Visit[]
   onUpdate: (updates: Partial<Client>) => void
 }
 
-export function TabInfo({ client, onUpdate }: TabInfoProps) {
+export function TabInfo({ client, currentVisit, allVisits, onUpdate }: TabInfoProps) {
   const photoInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
   const [activeVoiceField, setActiveVoiceField] = useState<'name' | 'phone' | 'email' | null>(null)
   const [interimText, setInterimText] = useState('')
   const [birthDateInput, setBirthDateInput] = useState('')
+  const [expandedVisits, setExpandedVisits] = useState<Set<string>>(new Set())
 
   const age = client.birthDate
     ? differenceInYears(new Date(), parseISO(client.birthDate))
@@ -82,6 +87,7 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
           id: crypto.randomUUID(),
           url: event.target?.result as string,
           date: new Date().toISOString(),
+          visitId: currentVisit?.id,
         })
       }
       reader.readAsDataURL(file)
@@ -104,6 +110,7 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
           url: event.target?.result as string,
           type: file.type,
           date: new Date().toISOString(),
+          visitId: currentVisit?.id,
         })
       }
       reader.readAsDataURL(file)
@@ -244,10 +251,17 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Фотографии</CardTitle>
-            <Button variant="outline" onClick={() => photoInputRef.current?.click()}>
-              <Camera className="mr-2 h-4 w-4" />
-              Добавить фото
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => photoInputRef.current?.click()}>
+                <Camera className="mr-2 h-4 w-4" />
+                Добавить фото
+                {currentVisit && (
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    (к приёму #{allVisits.findIndex(v => v.id === currentVisit.id) + 1})
+                  </span>
+                )}
+              </Button>
+            </div>
             <input
               ref={photoInputRef}
               type="file"
@@ -266,36 +280,93 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
-                {client.photos.map((photo) => (
-                  <div
-                    key={photo.id}
-                    className="relative group aspect-square rounded-lg overflow-hidden cursor-pointer border"
-                    onClick={() => setSelectedPhoto(photo)}
-                  >
-                    <img
-                      src={photo.url}
-                      alt={photo.description || 'Фото клиента'}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDeletePhoto(photo.id)
+              <div className="space-y-4">
+                {(() => {
+                  const photosByVisit = new Map<string | undefined, Photo[]>()
+                  client.photos.forEach(photo => {
+                    const visitId = photo.visitId
+                    if (!photosByVisit.has(visitId)) {
+                      photosByVisit.set(visitId, [])
+                    }
+                    photosByVisit.get(visitId)!.push(photo)
+                  })
+
+                  const sortedVisitIds = Array.from(photosByVisit.keys()).sort((a, b) => {
+                    if (!a) return 1
+                    if (!b) return -1
+                    const visitA = allVisits.find(v => v.id === a)
+                    const visitB = allVisits.find(v => v.id === b)
+                    if (!visitA) return 1
+                    if (!visitB) return -1
+                    return new Date(visitB.date).getTime() - new Date(visitA.date).getTime()
+                  })
+
+                  return sortedVisitIds.map(visitId => {
+                    const photos = photosByVisit.get(visitId)!
+                    const visit = visitId ? allVisits.find(v => v.id === visitId) : null
+                    const visitIndex = visit ? allVisits.indexOf(visit) : -1
+                    const isExpanded = expandedVisits.has(visitId || 'none')
+
+                    return (
+                      <Collapsible
+                        key={visitId || 'none'}
+                        open={isExpanded}
+                        onOpenChange={(open) => {
+                          const newExpanded = new Set(expandedVisits)
+                          if (open) {
+                            newExpanded.add(visitId || 'none')
+                          } else {
+                            newExpanded.delete(visitId || 'none')
+                          }
+                          setExpandedVisits(newExpanded)
                         }}
                       >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1 text-center">
-                      {format(parseISO(photo.date), 'd MMM yy', { locale: ru })}
-                    </div>
-                  </div>
-                ))}
+                        <CollapsibleTrigger asChild>
+                          <div className="flex items-center justify-between p-2 rounded-lg border bg-muted/30 cursor-pointer hover:bg-muted/50">
+                            <span className="font-medium text-sm">
+                              {visit ? `Приём #${allVisits.length + 1 - (allVisits.length - visitIndex)} - ${format(parseISO(visit.date), 'd MMM yyyy', { locale: ru })}` : 'Без привязки'}
+                              <span className="ml-2 text-muted-foreground">({photos.length})</span>
+                            </span>
+                            <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                          </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="mt-2">
+                          <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+                            {photos.map((photo) => (
+                              <div
+                                key={photo.id}
+                                className="relative group aspect-square rounded-lg overflow-hidden cursor-pointer border"
+                                onClick={() => setSelectedPhoto(photo)}
+                              >
+                                <img
+                                  src={photo.url}
+                                  alt={photo.description || 'Фото клиента'}
+                                  className="w-full h-full object-cover"
+                                />
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <Button
+                                    variant="destructive"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleDeletePhoto(photo.id)
+                                    }}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1 text-center">
+                                  {format(parseISO(photo.date), 'd MMM yy', { locale: ru })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    )
+                  })
+                })()}
               </div>
             )}
           </CardContent>
@@ -305,10 +376,17 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Файлы</CardTitle>
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-              <Upload className="mr-2 h-4 w-4" />
-              Загрузить файл
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="mr-2 h-4 w-4" />
+                Загрузить файл
+                {currentVisit && (
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    (к приёму #{allVisits.findIndex(v => v.id === currentVisit.id) + 1})
+                  </span>
+                )}
+              </Button>
+            </div>
             <input
               ref={fileInputRef}
               type="file"
@@ -326,70 +404,95 @@ export function TabInfo({ client, onUpdate }: TabInfoProps) {
                 </div>
               </div>
             ) : (
-              <div className="space-y-2">
-                {client.files.map((file) => (
-                  <div
-                    key={file.id}
-                    className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
-                  >
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">{file.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(parseISO(file.date), 'd MMM yyyy', { locale: ru })}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="icon" asChild>
-                        <a href={file.url} download={file.name}>
-                          <Upload className="h-4 w-4 rotate-180" />
-                        </a>
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteFile(file.id)}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+              <div className="space-y-4">
+                {(() => {
+                  const filesByVisit = new Map<string | undefined, ClientFile[]>()
+                  client.files.forEach(file => {
+                    const visitId = file.visitId
+                    if (!filesByVisit.has(visitId)) {
+                      filesByVisit.set(visitId, [])
+                    }
+                    filesByVisit.get(visitId)!.push(file)
+                  })
+
+                  const sortedVisitIds = Array.from(filesByVisit.keys()).sort((a, b) => {
+                    if (!a) return 1
+                    if (!b) return -1
+                    const visitA = allVisits.find(v => v.id === a)
+                    const visitB = allVisits.find(v => v.id === b)
+                    if (!visitA) return 1
+                    if (!visitB) return -1
+                    return new Date(visitB.date).getTime() - new Date(visitA.date).getTime()
+                  })
+
+                  return sortedVisitIds.map(visitId => {
+                    const files = filesByVisit.get(visitId)!
+                    const visit = visitId ? allVisits.find(v => v.id === visitId) : null
+                    const visitIndex = visit ? allVisits.indexOf(visit) : -1
+                    const isExpanded = expandedVisits.has(visitId || 'none')
+
+                    return (
+                      <Collapsible
+                        key={visitId || 'none'}
+                        open={isExpanded}
+                        onOpenChange={(open) => {
+                          const newExpanded = new Set(expandedVisits)
+                          if (open) {
+                            newExpanded.add(visitId || 'none')
+                          } else {
+                            newExpanded.delete(visitId || 'none')
+                          }
+                          setExpandedVisits(newExpanded)
+                        }}
+                      >
+                        <CollapsibleTrigger asChild>
+                          <div className="flex items-center justify-between p-2 rounded-lg border bg-muted/30 cursor-pointer hover:bg-muted/50">
+                            <span className="font-medium text-sm">
+                              {visit ? `Приём #${allVisits.length - visitIndex} - ${format(parseISO(visit.date), 'd MMM yyyy', { locale: ru })}` : 'Без привязки'}
+                              <span className="ml-2 text-muted-foreground">({files.length})</span>
+                            </span>
+                            <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                          </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="mt-2">
+                          <div className="space-y-2">
+                            {files.map((file) => (
+                              <div
+                                key={file.id}
+                                className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <FileText className="h-5 w-5 text-muted-foreground" />
+                                  <div>
+                                    <p className="font-medium">{file.name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {format(parseISO(file.date), 'd MMM yyyy', { locale: ru })}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button variant="ghost" size="icon" asChild>
+                                    <a href={file.url} download={file.name}>
+                                      <Upload className="h-4 w-4 rotate-180" />
+                                    </a>
+                                  </Button>
+                                  <Button variant="ghost" size="icon" onClick={() => handleDeleteFile(file.id)}>
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    )
+                  })
+                })()}
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Visit History */}
-        <Card>
-          <CardHeader>
-            <CardTitle>История визитов</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {client.visits.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">
-                Нет записей о визитах
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {[...client.visits].reverse().slice(0, 10).map((visit, index) => (
-                  <div
-                    key={visit.id}
-                    className="flex items-center gap-3 p-3 rounded-lg border"
-                  >
-                    <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary/10 text-primary">
-                      <Calendar className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Визит #{client.visits.length - index}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(parseISO(visit.date), 'd MMMM yyyy, HH:mm', { locale: ru })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
 
       {/* Photo preview modal */}
