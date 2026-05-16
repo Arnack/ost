@@ -289,7 +289,7 @@ export function TabBodyRegions({ visit, allVisits = [], onUpdate }: TabBodyRegio
               <CardTitle>Динамика по приёмам</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[...allVisits]
                   .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                   .map((v, idx, arr) => {
@@ -297,15 +297,73 @@ export function TabBodyRegions({ visit, allVisits = [], onUpdate }: TabBodyRegio
                     const negative = v.bodyRegions.regions.filter((r) => r.status === '-')
                     const positive = v.bodyRegions.regions.filter((r) => r.status === '+')
                     const isCurrentVisit = v.id === visit.id
+
+                    // Get region status for this visit
+                    const getVisitRegionStatus = (regionId: string): BodyRegion['status'] => {
+                      const region = v.bodyRegions.regions.find((r) => r.id === regionId)
+                      return region?.status || 'neutral'
+                    }
+
+                    // Compute primary cause for this visit
+                    const visitPrimaryCauseIds = new Set<string>()
+                    const allRegionsList = [...frontRegions, ...backRegions]
+                    allRegionsList.forEach((reg) => {
+                      if (reg.bodySide === 'left') {
+                        const rightId = reg.id.replace('-left', '-right').replace('left', 'right')
+                        const leftStatus = getVisitRegionStatus(reg.id)
+                        const rightStatus = getVisitRegionStatus(rightId)
+                        if (leftStatus === '-' && rightStatus === '-') {
+                          visitPrimaryCauseIds.add(reg.id)
+                          visitPrimaryCauseIds.add(rightId)
+                        }
+                      }
+                    })
+
+                    // Mini body diagram component for timeline
+                    const MiniBodyDiagram = ({ regions, side }: { regions: BodyDiagramRegion[]; side: 'front' | 'back' }) => (
+                      <svg viewBox="0 0 100 100" className="w-full h-auto" style={{ aspectRatio: '1/1.2' }}>
+                        {/* Body outline */}
+                        <ellipse cx="50" cy="10" rx="8" ry="8" fill="none" stroke="currentColor" strokeWidth="0.8" className="text-muted-foreground/50" />
+                        <line x1="50" y1="18" x2="50" y2="55" stroke="currentColor" strokeWidth="0.8" className="text-muted-foreground/50" />
+                        <line x1="50" y1="25" x2="25" y2="45" stroke="currentColor" strokeWidth="0.8" className="text-muted-foreground/50" />
+                        <line x1="50" y1="25" x2="75" y2="45" stroke="currentColor" strokeWidth="0.8" className="text-muted-foreground/50" />
+                        <line x1="42" y1="55" x2="38" y2="95" stroke="currentColor" strokeWidth="0.8" className="text-muted-foreground/50" />
+                        <line x1="58" y1="55" x2="62" y2="95" stroke="currentColor" strokeWidth="0.8" className="text-muted-foreground/50" />
+
+                        {/* Regions */}
+                        {regions.map((region) => {
+                          const status = getVisitRegionStatus(region.id)
+                          const isPrimary = visitPrimaryCauseIds.has(region.id)
+                          return (
+                            <rect
+                              key={region.id}
+                              x={region.x}
+                              y={region.y}
+                              width={region.width}
+                              height={region.height}
+                              rx="1"
+                              className={cn(
+                                isPrimary              ? 'fill-destructive/70 stroke-destructive'
+                                  : status === 'neutral' ? 'fill-muted/30 stroke-border'
+                                  : status === '+'      ? 'fill-success/40 stroke-success'
+                                  :                        'fill-destructive/40 stroke-destructive'
+                              )}
+                              strokeWidth="0.6"
+                            />
+                          )
+                        })}
+                      </svg>
+                    )
+
                     return (
                       <div
                         key={v.id}
                         className={cn(
-                          'rounded-lg border p-3',
+                          'rounded-lg border p-4',
                           isCurrentVisit && 'border-primary bg-primary/5'
                         )}
                       >
-                        <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
                             <span className={cn(
                               'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold',
@@ -320,12 +378,35 @@ export function TabBodyRegions({ visit, allVisits = [], onUpdate }: TabBodyRegio
                             <span className="text-destructive">−{negative.length}</span>
                           </div>
                         </div>
+
+                        {/* Body diagrams for this visit */}
+                        <div className="grid grid-cols-2 gap-4 mb-3">
+                          <div className="flex flex-col items-center">
+                            <span className="text-xs text-muted-foreground mb-1">Спереди</span>
+                            <div className="w-full max-w-[120px] bg-muted/20 rounded p-2">
+                              <MiniBodyDiagram regions={frontRegions} side="front" />
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-center">
+                            <span className="text-xs text-muted-foreground mb-1">Сзади</span>
+                            <div className="w-full max-w-[120px] bg-muted/20 rounded p-2">
+                              <MiniBodyDiagram regions={backRegions} side="back" />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Region chips */}
                         <div className="flex flex-wrap gap-1">
-                          {negative.slice(0, 6).map((r) => (
+                          {negative.slice(0, 8).map((r) => (
                             <span key={r.id} className="rounded bg-destructive/20 px-2 py-0.5 text-xs text-destructive">
                               {r.name}
                             </span>
                           ))}
+                          {negative.length > 8 && (
+                            <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                              +{negative.length - 8} ещё
+                            </span>
+                          )}
                         </div>
                       </div>
                     )
