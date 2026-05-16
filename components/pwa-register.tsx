@@ -43,6 +43,48 @@ export function PWARegister() {
   }, [])
 
   useEffect(() => {
+    let startY = 0
+    let isPullingDown = false
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (window.scrollY === 0) {
+        startY = e.touches[0].clientY
+        isPullingDown = true
+      }
+    }
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (isPullingDown && window.scrollY === 0) {
+        const currentY = e.touches[0].clientY
+        if (currentY > startY && currentY - startY > 50) {
+          e.preventDefault()
+        }
+      }
+    }
+
+    const handleTouchEnd = () => {
+      isPullingDown = false
+      startY = 0
+    }
+
+    const preventDefaultPullToRefresh = () => {
+      document.body.style.overscrollBehavior = 'none'
+      document.documentElement.style.overscrollBehavior = 'none'
+    }
+
+    preventDefaultPullToRefresh()
+    document.addEventListener('touchstart', handleTouchStart, { passive: true })
+    document.addEventListener('touchmove', handleTouchMove, { passive: false })
+    document.addEventListener('touchend', handleTouchEnd, { passive: true })
+
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart)
+      document.removeEventListener('touchmove', handleTouchMove)
+      document.removeEventListener('touchend', handleTouchEnd)
+    }
+  }, [])
+
+  useEffect(() => {
     if (process.env.NODE_ENV !== 'production') {
       return
     }
